@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun SetDefaultScreen(onRequest: () -> Unit) {
-    val shape = remember { MaterialShapes.Cookie12Sided.toShape() }
+    val shape = MaterialShapes.Cookie12Sided.toShape()
     val angle by rememberInfiniteTransition(label = "spin").animateFloat(
         0f, 360f, infiniteRepeatable(tween(20_000, easing = LinearEasing)), label = "angle",
     )

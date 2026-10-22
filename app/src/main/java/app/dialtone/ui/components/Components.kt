@@ -78,9 +78,9 @@ fun Avatar(
 ) {
     val scheme = MaterialTheme.colorScheme
     val index = seed.hashCode() and Int.MAX_VALUE
-    val shape: Shape = remember(expressive, index) {
+    // toShape() is composable (and remembers internally) in Material 3 1.5.
+    val shape: Shape =
         if (expressive) expressiveShapes[index % expressiveShapes.size].toShape() else CircleShape
-    }
     val (bg, fg) = when (index % 3) {
         0 -> scheme.primaryContainer to scheme.onPrimaryContainer
         1 -> scheme.secondaryContainer to scheme.onSecondaryContainer
@@ -139,7 +139,7 @@ fun EmptyState(
     modifier: Modifier = Modifier,
     action: (@Composable () -> Unit)? = null,
 ) {
-    val shape = remember { MaterialShapes.Cookie9Sided.toShape() }
+    val shape = MaterialShapes.Cookie9Sided.toShape()
     Column(
         modifier.fillMaxWidth().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
