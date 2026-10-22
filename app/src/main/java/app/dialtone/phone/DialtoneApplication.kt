@@ -1,5 +1,6 @@
 package app.dialtone.phone
 
+import app.dialtone.phone.data.VoicemailRestore
 import android.app.Application
 import app.dialtone.phone.telecom.CallNotifications
 import app.dialtone.phone.transcription.Transcription
@@ -15,6 +16,9 @@ class DialtoneApplication : Application() {
         VoicemailNotifier.ensureChannel(this)
         // Re-arm the transcription watcher (content-trigger jobs don't survive a reboot or
         // force-stop). Off the main thread: it checks for the bundled model.
-        Thread { Transcription.schedule(this) }.start()
+        Thread {
+            VoicemailRestore.runOnce(this)
+            Transcription.schedule(this)
+        }.start()
     }
 }
