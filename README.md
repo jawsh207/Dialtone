@@ -58,13 +58,13 @@ same key.
 
 ### Building locally
 
-Open the folder in Android Studio (Narwhal or newer), or run `./gradlew assembleDebug`.
+Open the folder in a recent Android Studio that supports AGP 9.1, or run `./gradlew assembleDebug`.
 
 ### Versions
 
-`gradle/libs.versions.toml` pins AGP 8.12, Kotlin 2.2.10, Compose BOM 2025.08 and
-`material3 1.5.0-alpha26` (the Expressive APIs are in the 1.5 alpha line). If sync complains,
-let Android Studio bump versions — the Expressive APIs used are `MaterialExpressiveTheme`,
+`gradle/libs.versions.toml` pins AGP 9.1.1 (Gradle 9.3.1, built-in Kotlin 2.2.10), compileSdk 37,
+Compose BOM 2025.08 and `material3 1.5.0-alpha26` (the Expressive APIs are in the 1.5 alpha
+line, which requires AGP 9.1+ and compileSdk 37). The Expressive APIs used are `MaterialExpressiveTheme`,
 `MotionScheme.expressive()`, `MaterialShapes` + `toShape()`, `LoadingIndicator` and
 `LinearWavyProgressIndicator`.
 
