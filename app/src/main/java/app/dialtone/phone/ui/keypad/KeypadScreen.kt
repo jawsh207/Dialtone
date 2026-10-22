@@ -100,7 +100,7 @@ fun KeypadScreen(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Avatar(contact.name, contact.photoUri, contact.id, 40.dp)
+                            Avatar(contact.name, contact.photoUri, contact.id, 48.dp)
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(contact.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
