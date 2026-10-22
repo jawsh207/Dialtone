@@ -23,9 +23,10 @@ class VoicemailRepository(private val context: Context) {
         val projection = arrayOf(
             Voicemails._ID, Voicemails.NUMBER, Voicemails.DATE, Voicemails.DURATION,
             Voicemails.IS_READ, Voicemails.TRANSCRIPTION, Voicemails.HAS_CONTENT,
-            Voicemails.SOURCE_PACKAGE,
+            Voicemails.SOURCE_PACKAGE, Voicemails.SOURCE_DATA,
         )
         val out = mutableListOf<Voicemail>()
+        val rows = mutableListOf<VoicemailDuplicates.Row>()
         try {
             context.contentResolver.query(
                 Voicemails.CONTENT_URI, projection,
@@ -45,6 +46,10 @@ class VoicemailRepository(private val context: Context) {
                         uri = ContentUris.withAppendedId(Voicemails.CONTENT_URI, id),
                         sourcePackage = c.getString(7),
                     )
+                    rows += VoicemailDuplicates.Row(
+                        id = id, sourcePackage = c.getString(7), sourceData = c.getString(8),
+                        number = c.getString(1).orEmpty(), date = c.getLong(2), durationSec = c.getLong(3),
+                    )
                 }
             }
         } catch (_: SecurityException) {
@@ -52,39 +57,58 @@ class VoicemailRepository(private val context: Context) {
         } catch (_: IllegalArgumentException) {
             // Some OEM builds lack a voicemail provider.
         }
-        dedupe(out)
+        merge(out, VoicemailDuplicates.match(rows, context.packageName))
     }
 
     /**
-     * After switching from another phone app, the same server message can exist twice: the old
-     * app's copy and Dialtone's. Show one, preferring Dialtone's (it syncs read/delete).
+     * Shows each message once, preferring Dialtone's copy (it syncs read/delete to the server).
+     * The hidden copy still fills gaps: its audio if ours hasn't downloaded yet, its transcript,
+     * and its read state.
      */
-    private fun dedupe(list: List<Voicemail>): List<Voicemail> =
-        list.groupBy { it.number to it.date / 1000 }
-            .values
-            .map { copies -> copies.firstOrNull { it.sourcePackage == context.packageName } ?: copies.first() }
+    private fun merge(list: List<Voicemail>, dupes: Map<Long, Long>): List<Voicemail> {
+        val byId = list.associateBy { it.id }
+        val copiesOf = dupes.entries.groupBy({ it.value }, { byId.getValue(it.key) })
+        return list.filter { it.id !in dupes }
+            .map { main ->
+                val copies = copiesOf[main.id].orEmpty()
+                if (copies.isEmpty()) return@map main
+                val audio = if (main.hasContent) main else copies.firstOrNull { it.hasContent } ?: main
+                main.copy(
+                    isRead = main.isRead || copies.any { it.isRead },
+                    transcription = main.transcription?.takeIf { it.isNotBlank() }
+                        ?: copies.firstNotNullOfOrNull { c -> c.transcription?.takeIf { it.isNotBlank() } },
+                    hasContent = audio.hasContent,
+                    uri = audio.uri,
+                    duplicateIds = copies.map { it.id },
+                )
+            }
             .sortedByDescending { it.date }
+    }
 
-    suspend fun markRead(id: Long) = withContext(Dispatchers.IO) {
-        runCatching {
-            context.contentResolver.update(
-                ContentUris.withAppendedId(Voicemails.CONTENT_URI, id),
-                ContentValues().apply { put(Voicemails.IS_READ, 1) },
-                null, null,
-            )
+    suspend fun markRead(vm: Voicemail) = withContext(Dispatchers.IO) {
+        for (id in listOf(vm.id) + vm.duplicateIds) {
+            runCatching {
+                context.contentResolver.update(
+                    ContentUris.withAppendedId(Voicemails.CONTENT_URI, id),
+                    ContentValues().apply { put(Voicemails.IS_READ, 1) },
+                    null, null,
+                )
+            }
         }
         DialtoneVoicemail.requestUpload(context)
     }
 
     /** Flag as deleted so the carrier client also removes it from the server on next sync. */
-    suspend fun delete(id: Long) = withContext(Dispatchers.IO) {
-        val uri = ContentUris.withAppendedId(Voicemails.CONTENT_URI, id)
-        val flagged = runCatching {
-            context.contentResolver.update(
-                uri, ContentValues().apply { put(Voicemails.DELETED, 1) }, null, null,
-            )
-        }.getOrDefault(0)
-        if (flagged == 0) runCatching { context.contentResolver.delete(uri, null, null) }
+    suspend fun delete(vm: Voicemail) = withContext(Dispatchers.IO) {
+        for (id in listOf(vm.id) + vm.duplicateIds) {
+            val uri = ContentUris.withAppendedId(Voicemails.CONTENT_URI, id)
+            val flagged = runCatching {
+                context.contentResolver.update(
+                    uri, ContentValues().apply { put(Voicemails.DELETED, 1) }, null, null,
+                )
+            }.getOrDefault(0)
+            if (flagged == 0) runCatching { context.contentResolver.delete(uri, null, null) }
+        }
         DialtoneVoicemail.requestUpload(context)
     }
 

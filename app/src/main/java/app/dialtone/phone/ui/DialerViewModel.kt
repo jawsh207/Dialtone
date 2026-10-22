@@ -123,11 +123,11 @@ class DialerViewModel(app: Application) : AndroidViewModel(app) {
 
     fun markRead(vm: Voicemail) {
         if (vm.isRead) return
-        viewModelScope.launch { voicemailRepo.markRead(vm.id) }
+        viewModelScope.launch { voicemailRepo.markRead(vm) }
     }
 
     fun delete(vm: Voicemail) {
         _voicemails.update { list -> list?.filterNot { it.id == vm.id } }
-        viewModelScope.launch { voicemailRepo.delete(vm.id) }
+        viewModelScope.launch { voicemailRepo.delete(vm) }
     }
 }
