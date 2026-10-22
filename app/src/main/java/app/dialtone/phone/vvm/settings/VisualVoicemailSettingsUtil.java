@@ -19,6 +19,7 @@ package app.dialtone.phone.vvm.settings;
 
 import android.content.Context;
 import android.provider.VoicemailContract.Voicemails;
+import app.dialtone.phone.vvm.DialtoneVoicemail;
 import android.telecom.PhoneAccountHandle;
 import androidx.annotation.VisibleForTesting;
 import app.dialtone.phone.vvm.OmtpVvmCarrierConfigHelper;
@@ -48,15 +49,13 @@ public class VisualVoicemailSettingsUtil {
     } else {
       VvmAccountManager.removeAccount(context, phoneAccount);
       config.startDeactivation();
-      // Remove voicemails this app downloaded.
+      // Remove every local copy of this SIM's voicemail, whichever app stored it (Dialtone's
+      // own sync or an earlier phone app). Local only: nothing changes on the carrier's server.
       final Context appContext = context.getApplicationContext();
       new Thread(
               () -> {
                 try {
-                  int deleted =
-                      appContext
-                          .getContentResolver()
-                          .delete(Voicemails.buildSourceUri(appContext.getPackageName()), null, null);
+                  int deleted = deleteLocalVoicemails(appContext, phoneAccount);
                   VvmLog.i("VisualVoicemailSettingsUtil", "deleted " + deleted + " voicemails");
                 } catch (RuntimeException e) {
                   VvmLog.e("VisualVoicemailSettingsUtil", "delete voicemails", e);
@@ -64,6 +63,31 @@ public class VisualVoicemailSettingsUtil {
               },
               "vvm-delete")
           .start();
+    }
+  }
+
+  /**
+   * Deletes stored voicemail for {@code phoneAccount}. When no other SIM still has visual
+   * voicemail on, everything in the voicemail store goes (including copies with no SIM recorded).
+   * As the default phone app Dialtone may delete any app's rows; if the provider refuses, at
+   * least Dialtone's own copies are removed.
+   */
+  private static int deleteLocalVoicemails(Context context, PhoneAccountHandle phoneAccount) {
+    boolean otherSimOn = false;
+    for (DialtoneVoicemail.AccountState state : DialtoneVoicemail.getAccounts(context)) {
+      if (!state.handle.equals(phoneAccount) && state.supported && state.enabled) {
+        otherSimOn = true;
+      }
+    }
+    String where = otherSimOn ? Voicemails.PHONE_ACCOUNT_ID + " = ?" : null;
+    String[] args = otherSimOn ? new String[] {phoneAccount.getId()} : null;
+    try {
+      return context.getContentResolver().delete(Voicemails.CONTENT_URI, where, args);
+    } catch (SecurityException e) {
+      VvmLog.w("VisualVoicemailSettingsUtil", "full delete refused, removing own copies: " + e);
+      return context
+          .getContentResolver()
+          .delete(Voicemails.buildSourceUri(context.getPackageName()), where, args);
     }
   }
 
