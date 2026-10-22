@@ -51,5 +51,16 @@ data class VvmAccount(
     val carrierAppInstalled: Boolean,
 )
 
+/** On-device transcription state for the voicemail UI. */
+data class TranscriptionUi(
+    /** This build/phone can transcribe (64-bit ARM with the bundled model). */
+    val available: Boolean = false,
+    val enabled: Boolean = false,
+    /** Voicemails whose transcript Dialtone wrote on this phone. */
+    val onDevice: Set<Long> = emptySet(),
+    /** Voicemails already processed (with or without a result). */
+    val attempted: Set<Long> = emptySet(),
+)
+
 /** Latest status the engine reported to the system voicemail store. */
 enum class VvmHealth { Unknown, Off, Ok, Configuring, NoConnection, Failed }

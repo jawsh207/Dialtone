@@ -113,6 +113,12 @@
             </intent-filter>
         </receiver>
 
+        <!-- ===== On-device voicemail transcription (Moonshine via transcribe.cpp) ===== -->
+        <service
+            android:name=".transcription.TranscriptionJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
         <!-- ===== Visual voicemail engine (ported from AOSP/GrapheneOS Dialer) ===== -->
         <service
             android:name=".vvm.OmtpService"

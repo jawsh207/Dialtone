@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.dialtone.phone.data.TranscriptionUi
 import app.dialtone.phone.data.VvmAccount
 import app.dialtone.phone.data.VvmHealth
 import app.dialtone.phone.ui.components.segmentShape
@@ -137,6 +138,7 @@ private fun protocolName(protocol: String?): String = when (protocol) {
 fun VoicemailSettingsSheet(
     accounts: List<VvmAccount>,
     health: VvmHealth,
+    transcription: TranscriptionUi,
     actions: VoicemailActions,
     onDismiss: () -> Unit,
 ) {
@@ -195,6 +197,32 @@ fun VoicemailSettingsSheet(
                             checked = account.enabled,
                             enabled = account.supported,
                             onCheckedChange = { actions.onToggleVisualVoicemail(account, it) },
+                        )
+                    }
+                }
+            }
+
+            if (transcription.available) {
+                Spacer(Modifier.padding(top = 12.dp))
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surfaceBright,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Transcribe on this phone", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "Turns voicemails without a carrier transcript into text, using a " +
+                                    "speech model on this phone. Nothing is uploaded.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Switch(
+                            checked = transcription.enabled,
+                            onCheckedChange = actions.onToggleTranscription,
                         )
                     }
                 }
