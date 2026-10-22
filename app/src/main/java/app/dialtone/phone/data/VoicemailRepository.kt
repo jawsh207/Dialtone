@@ -7,6 +7,7 @@ import android.content.Intent
 import android.provider.VoicemailContract
 import android.provider.VoicemailContract.Status
 import android.provider.VoicemailContract.Voicemails
+import app.dialtone.phone.transcription.Transcription
 import app.dialtone.phone.vvm.DialtoneVoicemail
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -148,6 +149,19 @@ class VoicemailRepository(private val context: Context) {
     }
 
     fun syncNow() = DialtoneVoicemail.syncNow(context)
+
+    suspend fun transcriptionState(): TranscriptionUi = withContext(Dispatchers.IO) {
+        TranscriptionUi(
+            available = Transcription.isAvailable(context),
+            enabled = Transcription.isEnabled(context),
+            onDevice = Transcription.transcribedIds(context),
+            attempted = Transcription.attemptedIds(context),
+        )
+    }
+
+    suspend fun setTranscriptionEnabled(enabled: Boolean) = withContext(Dispatchers.IO) {
+        Transcription.setEnabled(context, enabled)
+    }
 
     fun readLog(): String = DialtoneVoicemail.readLog(context)
 

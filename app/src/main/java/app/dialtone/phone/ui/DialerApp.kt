@@ -105,6 +105,7 @@ fun DialerApp(
     val contactIndex by vm.contactIndex.collectAsStateWithLifecycle()
     val vvmAccounts by vm.vvmAccounts.collectAsStateWithLifecycle()
     val vvmHealth by vm.vvmHealth.collectAsStateWithLifecycle()
+    val transcription by vm.transcription.collectAsStateWithLifecycle()
 
     var tab by rememberSaveable { mutableStateOf(Tab.Home) }
     var keypadOpen by rememberSaveable { mutableStateOf(false) }
@@ -150,6 +151,7 @@ fun DialerApp(
             onRequestAudio = vm::requestVoicemailAudio,
             onToggleVisualVoicemail = vm::setVisualVoicemailEnabled,
             onSyncNow = vm::syncVoicemail,
+            onToggleTranscription = vm::setTranscriptionEnabled,
             readLog = vm::voicemailLog,
             clearLog = vm::clearVoicemailLog,
         )
@@ -218,6 +220,7 @@ fun DialerApp(
                             contactIndex = contactIndex,
                             accounts = vvmAccounts,
                             health = vvmHealth,
+                            transcription = transcription,
                             actions = voicemailActions,
                             contentPadding = padding,
                         )

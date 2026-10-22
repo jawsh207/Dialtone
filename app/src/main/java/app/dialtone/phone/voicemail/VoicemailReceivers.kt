@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Build
 import android.telecom.PhoneAccountHandle
 import android.telephony.TelephonyManager
+import app.dialtone.phone.transcription.Transcription
 import app.dialtone.phone.vvm.DialtoneVoicemail
 import app.dialtone.phone.vvm.VoicemailClient
 
@@ -49,7 +50,10 @@ class MessageWaitingReceiver : BroadcastReceiver() {
 class VoicemailPowerReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
-            Intent.ACTION_BOOT_COMPLETED -> DialtoneVoicemail.onBoot(context)
+            Intent.ACTION_BOOT_COMPLETED -> {
+                DialtoneVoicemail.onBoot(context)
+                Transcription.schedule(context, runNow = true)
+            }
             Intent.ACTION_SHUTDOWN -> DialtoneVoicemail.onShutdown(context)
         }
     }

@@ -19,3 +19,10 @@ Copyright 2015 The Google Sans Flex Authors (https://github.com/googlefonts/goog
 Licensed under the SIL Open Font License, Version 1.1. The full license ships inside the app
 at assets/licenses/google_sans_flex-OFL.txt and is in this repository at
 app/src/main/assets/licenses/google_sans_flex-OFL.txt.
+
+On-device voicemail transcription
+- transcribe.cpp 0.4.1 (https://github.com/handy-computer/transcribe.cpp), MIT License,
+  Copyright (c) 2026 The transcribe.cpp authors. Vendors ggml (MIT), Silero VAD (MIT) and
+  miniz (MIT). License texts ship in the app under assets/licenses/transcribe.cpp-*.
+- Moonshine tiny speech model by Useful Sensors (https://huggingface.co/UsefulSensors/moonshine-tiny),
+  MIT License, in the GGUF conversion published by handy-computer/moonshine-tiny-gguf.

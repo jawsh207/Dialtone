@@ -88,9 +88,25 @@ It's the engine from the AOSP Dialer, as shipped in GrapheneOS, ported into `vvm
 - **No visual voicemail?** Dialtone shows the carrier's basic "new voicemail" notification
   with a tap-to-call action instead.
 
-Left out from the stock dialer: Google's cloud transcription (needs Google's private API;
-carrier-provided transcripts still work), voicemail archiving, and the PIN-change and greeting
-screens.
+Left out from the stock dialer: Google's cloud transcription (needs Google's private API),
+voicemail archiving, and the PIN-change and greeting screens.
+
+### On-device transcription
+
+Voicemail settings has a **Transcribe on this phone** switch (off by default). When on,
+voicemails that arrive without a carrier transcript are transcribed on the phone with the
+[Moonshine](https://huggingface.co/UsefulSensors/moonshine-tiny) tiny model (MIT) running in
+[transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) (MIT). Nothing is uploaded.
+
+- Carrier transcripts always win: they're never replaced, with the switch on or off.
+- The ~35 MB model is downloaded at build time (verified by size and SHA-256) and bundled in
+  the APK; it's copied out once while the switch is on and deleted when it's turned off.
+- Runs as a background job when a new voicemail's audio arrives; long messages are split at
+  pauses into ~20-second pieces.
+- 64-bit ARM only (every phone GrapheneOS supports); elsewhere the switch is hidden.
+- The engine lives in the `app/src/main/cpp/transcribe.cpp` submodule; clone with
+  `--recurse-submodules`. CI's `transcription-smoke` job runs the model on sample audio,
+  including a phone-quality version, and posts the transcripts on the run page.
 
 ### If voicemail doesn't show up
 

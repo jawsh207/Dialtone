@@ -11,6 +11,7 @@ import app.dialtone.phone.data.CallLogRepository
 import app.dialtone.phone.data.Contact
 import app.dialtone.phone.data.ContactsRepository
 import app.dialtone.phone.data.RecentCall
+import app.dialtone.phone.data.TranscriptionUi
 import app.dialtone.phone.data.Voicemail
 import app.dialtone.phone.data.VoicemailRepository
 import app.dialtone.phone.data.VvmAccount
@@ -46,6 +47,9 @@ class DialerViewModel(app: Application) : AndroidViewModel(app) {
     private val _vvmAccounts = MutableStateFlow<List<VvmAccount>>(emptyList())
     val vvmAccounts: StateFlow<List<VvmAccount>> = _vvmAccounts.asStateFlow()
 
+    private val _transcription = MutableStateFlow(TranscriptionUi())
+    val transcription: StateFlow<TranscriptionUi> = _transcription.asStateFlow()
+
     private val _vvmHealth = MutableStateFlow(VvmHealth.Unknown)
     val vvmHealth: StateFlow<VvmHealth> = _vvmHealth.asStateFlow()
 
@@ -66,7 +70,10 @@ class DialerViewModel(app: Application) : AndroidViewModel(app) {
     init {
         observe(ContactsContract.Contacts.CONTENT_URI) { _contacts.value = contactsRepo.load() }
         observe(CallLog.Calls.CONTENT_URI) { _recents.value = callLogRepo.load() }
-        observe(VoicemailContract.Voicemails.CONTENT_URI) { _voicemails.value = voicemailRepo.load() }
+        observe(VoicemailContract.Voicemails.CONTENT_URI) {
+            _voicemails.value = voicemailRepo.load()
+            _transcription.value = voicemailRepo.transcriptionState()
+        }
         observe(VoicemailContract.Status.CONTENT_URI) { loadVvmState() }
     }
 
@@ -82,6 +89,7 @@ class DialerViewModel(app: Application) : AndroidViewModel(app) {
             _contacts.value = contactsRepo.load()
             _recents.value = callLogRepo.load()
             _voicemails.value = voicemailRepo.load()
+            _transcription.value = voicemailRepo.transcriptionState()
             loadVvmState()
         }
     }
@@ -99,6 +107,13 @@ class DialerViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun syncVoicemail() = voicemailRepo.syncNow()
+
+    fun setTranscriptionEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            voicemailRepo.setTranscriptionEnabled(enabled)
+            _transcription.value = voicemailRepo.transcriptionState()
+        }
+    }
 
     fun requestVoicemailAudio(vm: Voicemail) = voicemailRepo.requestContent(vm)
 

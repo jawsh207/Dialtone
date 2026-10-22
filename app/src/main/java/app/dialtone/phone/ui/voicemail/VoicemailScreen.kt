@@ -52,10 +52,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.dialtone.phone.data.Contact
+import app.dialtone.phone.data.TranscriptionUi
 import app.dialtone.phone.data.Voicemail
 import app.dialtone.phone.data.VvmAccount
 import app.dialtone.phone.data.VvmHealth
@@ -77,6 +79,7 @@ class VoicemailActions(
     val onRequestAudio: (Voicemail) -> Unit,
     val onToggleVisualVoicemail: (VvmAccount, Boolean) -> Unit,
     val onSyncNow: () -> Unit,
+    val onToggleTranscription: (Boolean) -> Unit,
     val readLog: () -> String,
     val clearLog: () -> Unit,
 )
@@ -87,6 +90,7 @@ fun VoicemailScreen(
     contactIndex: Map<String, Contact>,
     accounts: List<VvmAccount>,
     health: VvmHealth,
+    transcription: TranscriptionUi,
     actions: VoicemailActions,
     contentPadding: PaddingValues,
 ) {
@@ -174,6 +178,9 @@ fun VoicemailScreen(
                     actions.onMarkRead(vm)
                 },
                 player = player,
+                transcribing = transcription.enabled && vm.hasContent &&
+                    vm.transcription.isNullOrBlank() && vm.id !in transcription.attempted,
+                transcribedOnDevice = vm.id in transcription.onDevice,
                 onCall = actions.onCall,
                 onRequestAudio = actions.onRequestAudio,
                 onDelete = {
@@ -190,6 +197,7 @@ fun VoicemailScreen(
         VoicemailSettingsSheet(
             accounts = accounts,
             health = health,
+            transcription = transcription,
             actions = actions,
             onDismiss = { showSettings = false },
         )
@@ -203,6 +211,8 @@ private fun VoicemailRow(
     expanded: Boolean,
     onToggle: () -> Unit,
     player: VoicemailPlayer,
+    transcribing: Boolean,
+    transcribedOnDevice: Boolean,
     onCall: (String) -> Unit,
     onRequestAudio: (Voicemail) -> Unit,
     onDelete: () -> Unit,
@@ -248,6 +258,13 @@ private fun VoicemailRow(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
+                    } else if (!expanded && transcribing) {
+                        Text(
+                            "Transcribing…",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontStyle = FontStyle.Italic,
+                            color = scheme.onSurfaceVariant,
+                        )
                     }
                 }
                 if (!vm.isRead) {
@@ -259,8 +276,26 @@ private fun VoicemailRow(
                 Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 14.dp)) {
                     if (!vm.transcription.isNullOrBlank()) {
                         Surface(shape = RoundedCornerShape(16.dp), color = scheme.surfaceContainerLow) {
-                            Text(vm.transcription, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(14.dp))
+                            Column(Modifier.padding(14.dp)) {
+                                Text(vm.transcription, style = MaterialTheme.typography.bodyMedium)
+                                if (transcribedOnDevice) {
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(
+                                        "Transcribed on this phone",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = scheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
                         }
+                        Spacer(Modifier.height(12.dp))
+                    } else if (transcribing) {
+                        Text(
+                            "Transcribing on this phone…",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontStyle = FontStyle.Italic,
+                            color = scheme.onSurfaceVariant,
+                        )
                         Spacer(Modifier.height(12.dp))
                     }
 
