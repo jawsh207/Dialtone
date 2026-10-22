@@ -1,5 +1,10 @@
 name: Build
 
+# Every push to main builds a signed, optimized APK (an updatable test build).
+# Releases: push a new release-notes/vX.Y.Z.md to main and this run also creates the
+# vX.Y.Z tag and publishes the GitHub Release with the APK. Creating a release on
+# GitHub (which pushes the tag) works too.
+
 on:
   push:
     branches: [main]
@@ -8,11 +13,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # create releases on tags
+  contents: write # create tags and releases
 
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: true
+  # Never cancel a run midway: it may be creating a tag and release.
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -21,13 +27,46 @@ jobs:
     env:
       # versionCode rises with every run, so each APK installs as an update.
       DIALTONE_VERSION_CODE: ${{ github.run_number }}
-      DIALTONE_VERSION_NAME: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('0.1.0-ci.{0}', github.run_number) }}
       HAS_SIGNING: ${{ secrets.DIALTONE_KEYSTORE_BASE64 != '' }}
 
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0 # full history + tags, for release notes
+
+      - name: Detect release
+        shell: bash
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          TAG=""; NEW=false
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG="$GITHUB_REF_NAME"   # release created on GitHub; tag already exists
+          elif [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/main ]]; then
+            if [[ -z "$BEFORE" || "$BEFORE" =~ ^0+$ ]] || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+              FILES=$(git ls-files 'release-notes/v*.md')
+            else
+              FILES=$(git diff --name-only --diff-filter=AM "$BEFORE" "$GITHUB_SHA" -- release-notes/)
+            fi
+            # Newest version whose notes were added or changed in this push and isn't tagged yet.
+            TAG=$(for f in $FILES; do
+                    v=$(basename "$f" .md)
+                    [[ "$v" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || continue
+                    git rev-parse -q --verify "refs/tags/$v" >/dev/null && continue
+                    echo "$v"
+                  done | sort -V | tail -1)
+            [[ -n "$TAG" ]] && NEW=true
+          fi
+          {
+            echo "RELEASE_TAG=$TAG"
+            echo "RELEASE_NEW=$NEW"
+            if [[ -n "$TAG" ]]; then
+              echo "DIALTONE_VERSION_NAME=$TAG"
+            else
+              echo "DIALTONE_VERSION_NAME=0.1.0-ci.$GITHUB_RUN_NUMBER"
+            fi
+          } >> "$GITHUB_ENV"
+          echo "release tag: ${TAG:-none} (new: $NEW)"
 
       - uses: actions/setup-java@v5
         with:
@@ -60,7 +99,9 @@ jobs:
         run: |
           # Surface compiler/Gradle errors as annotations (visible on the run page and via API).
           python3 - <<'PYEOF'
-          import re
+          import os, re
+          if not os.path.exists("build.log"):
+              raise SystemExit(0)
           lines = open("build.log", errors="replace").read().splitlines()
           picked = []
           for i, line in enumerate(lines):
@@ -94,12 +135,22 @@ jobs:
           name: Dialtone-${{ env.DIALTONE_VERSION_NAME }}
           path: out/*.apk
 
+      # Only after a successful, signed build: tag this commit.
+      - name: Create release tag
+        if: env.RELEASE_NEW == 'true'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$RELEASE_TAG" -m "Dialtone $RELEASE_TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$RELEASE_TAG"
+
       - name: Write release notes
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: env.RELEASE_TAG != ''
         shell: bash
         run: |
           git fetch --force --tags origin >/dev/null 2>&1 || true
-          TAG="$GITHUB_REF_NAME"
+          TAG="$RELEASE_TAG"
           PREV=$(git describe --tags --abbrev=0 --match 'v*' "${TAG}^" 2>/dev/null || true)
           {
             # Summary: release-notes/<tag>.md from the repo, else the annotated tag message.
@@ -122,12 +173,12 @@ jobs:
           cat release-notes.md
 
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: env.RELEASE_TAG != ''
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          TAG="$GITHUB_REF_NAME"
+          TAG="$RELEASE_TAG"
           if gh release view "$TAG" >/dev/null 2>&1; then
             # Release was created on GitHub (which made the tag): attach the APK, and fill in
             # the title and notes unless someone already wrote notes there.
@@ -137,5 +188,5 @@ jobs:
               gh release edit "$TAG" --title "Dialtone $TAG" --notes-file release-notes.md
             fi
           else
-            gh release create "$TAG" out/*.apk --title "Dialtone $TAG" --notes-file release-notes.md
+            gh release create "$TAG" out/*.apk --title "Dialtone $TAG" --notes-file release-notes.md --verify-tag
           fi

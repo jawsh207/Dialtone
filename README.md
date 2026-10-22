@@ -27,8 +27,12 @@ modern Pixel dialer: dynamic color, shape-morphing buttons, expressive avatar sh
 
 Every push to `main` produces an optimized release APK (R8-shrunk, non-debuggable) signed with
 Dialtone's release key; download it from the run's **Artifacts** under **Actions → Build**.
-Each build has a higher version code, so it installs as an update over the last one. Push a tag
-like `v0.2.0` to also publish a GitHub Release with the APK attached.
+Each build has a higher version code, so it installs as an update over the last one.
+
+**Releases:** add `release-notes/vX.Y.Z.md` (a short summary) and push it to `main`. That run
+builds the signed APK, tags the commit `vX.Y.Z`, and publishes a GitHub Release with the APK,
+the summary, every change since the previous release and a full-changelog link. Creating a
+release on GitHub with a new `vX.Y.Z` tag works too.
 
 1. Install the APK on a **real phone with a SIM** (Android 10+). Emulators can't place real calls.
 2. Open Dialtone, tap **Set as default** and pick it. Grant the permissions it asks for.
