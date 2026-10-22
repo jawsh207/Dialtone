@@ -112,7 +112,7 @@ fun VoicemailScreen(
     LazyColumn(
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding(),
-            bottom = contentPadding.calculateBottomPadding() + 104.dp,
+            bottom = contentPadding.calculateBottomPadding() + 88.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(2.dp),
         modifier = Modifier.fillMaxSize(),

@@ -60,7 +60,7 @@ fun ContactsScreen(contacts: List<Contact>, onCall: (String) -> Unit, contentPad
     LazyColumn(
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding() + 8.dp,
-            bottom = contentPadding.calculateBottomPadding() + 104.dp,
+            bottom = contentPadding.calculateBottomPadding() + 88.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(2.dp),
         modifier = Modifier.fillMaxSize(),
