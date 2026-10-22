@@ -1,0 +1,15 @@
+Dialtone
+
+This product includes software from the Android Open Source Project
+(packages/apps/Dialer, java/com/android/voicemail and java/com/android/dialer/common),
+as distributed by GrapheneOS: https://github.com/GrapheneOS/platform_packages_apps_Dialer
+Copyright (C) The Android Open Source Project.
+Licensed under the Apache License, Version 2.0: http://www.apache.org/licenses/LICENSE-2.0
+
+Modifications for Dialtone: package renamed to app.dialtone.vvm; Dialer-internal dependencies
+(Dagger components, executors, analytics, feature flags, Volley, AutoValue, Guava, commons-io)
+replaced with small local equivalents; Google cloud transcription, archiving and the developer
+config-override screen removed; a public-API IPv4 check replaces a platform-only call; an
+on-device diagnostics log was added.
+
+This product depends on Apache James Mime4j (Apache License 2.0).

@@ -1,0 +1,5 @@
+<resources>
+    <!-- Launcher icon: GrapheneOS Dialer handset, recolored white on green. -->
+    <color name="ic_launcher_background">#FF1E8E3E</color>
+    <color name="ic_launcher_foreground">#FFFFFFFF</color>
+</resources>
