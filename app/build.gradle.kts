@@ -1,14 +1,12 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
 
 android {
     namespace = "app.dialtone"
-    compileSdk = 36
+    // Material 3 Expressive (1.5 alpha) requires compileSdk 37 and AGP 9.1+.
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "app.dialtone"
@@ -56,9 +54,9 @@ android {
     }
 }
 
-kotlin {
+// AGP 9 compiles Kotlin itself ("built-in Kotlin"); JVM target follows compileOptions.
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_17)
         freeCompilerArgs.addAll(
             "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
             "-opt-in=androidx.compose.material3.ExperimentalMaterial3ExpressiveApi",
