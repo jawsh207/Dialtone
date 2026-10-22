@@ -191,12 +191,14 @@ fun DialerApp(
                 }
             },
             floatingActionButton = {
+                // Standard 56dp FAB with default shape and elevation, as in Contacts.
                 FloatingActionButton(
                     onClick = { keypadOpen = true },
-                    shape = RoundedCornerShape(22.dp),
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(72.dp),
-                ) { Icon(Icons.Rounded.Dialpad, "Open keypad", Modifier.size(30.dp)) }
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ) {
+                    Icon(Icons.Rounded.Dialpad, contentDescription = "Open keypad")
+                }
             },
         ) { padding ->
             val q = query
@@ -311,7 +313,7 @@ private fun SearchResults(
         }
     }
     LazyColumn(
-        contentPadding = PaddingValues(top = padding.calculateTopPadding(), bottom = padding.calculateBottomPadding() + 104.dp),
+        contentPadding = PaddingValues(top = padding.calculateTopPadding(), bottom = padding.calculateBottomPadding() + 88.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
