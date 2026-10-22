@@ -14,6 +14,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import app.dialtone.phone.MainActivity
 import app.dialtone.phone.R
+import app.dialtone.phone.data.VoicemailDuplicates
 import app.dialtone.phone.telecom.CallerLookup
 import app.dialtone.phone.util.formatNumber
 import app.dialtone.phone.util.hasPermission
@@ -53,19 +54,28 @@ object VoicemailNotifier {
 
         data class Row(val id: Long, val number: String, val date: Long, val transcript: String?)
         val unread = mutableListOf<Row>()
+        val all = mutableListOf<VoicemailDuplicates.Row>()
         runCatching {
             context.contentResolver.query(
                 Voicemails.CONTENT_URI,
-                arrayOf(Voicemails._ID, Voicemails.NUMBER, Voicemails.DATE, Voicemails.TRANSCRIPTION),
-                "${Voicemails.IS_READ} = 0 AND ${Voicemails.DELETED} = 0",
+                arrayOf(
+                    Voicemails._ID, Voicemails.NUMBER, Voicemails.DATE, Voicemails.TRANSCRIPTION,
+                    Voicemails.IS_READ, Voicemails.SOURCE_PACKAGE, Voicemails.SOURCE_DATA, Voicemails.DURATION,
+                ),
+                "${Voicemails.DELETED} = 0",
                 null,
                 "${Voicemails.DATE} DESC",
             )?.use { c ->
                 while (c.moveToNext()) {
-                    unread += Row(c.getLong(0), c.getString(1).orEmpty(), c.getLong(2), c.getString(3))
+                    val row = Row(c.getLong(0), c.getString(1).orEmpty(), c.getLong(2), c.getString(3))
+                    all += VoicemailDuplicates.Row(row.id, c.getString(5), c.getString(6), row.number, row.date, c.getLong(7))
+                    if (c.getInt(4) == 0) unread += row
                 }
             }
         }
+        // Count a message once even if another app also has a copy of it.
+        val hidden = VoicemailDuplicates.match(all, context.packageName).keys
+        unread.removeAll { it.id in hidden }
         if (unread.isEmpty()) {
             cancelVisual(context)
             return

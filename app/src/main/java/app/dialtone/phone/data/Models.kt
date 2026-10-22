@@ -38,6 +38,8 @@ data class Voicemail(
     val uri: Uri,
     /** App that synced this message (Dialtone's engine, or a carrier voicemail app). */
     val sourcePackage: String?,
+    /** Other apps' copies of this same message (hidden); read/delete apply to them too. */
+    val duplicateIds: List<Long> = emptyList(),
 )
 
 /** One SIM's visual voicemail state for the settings sheet. */

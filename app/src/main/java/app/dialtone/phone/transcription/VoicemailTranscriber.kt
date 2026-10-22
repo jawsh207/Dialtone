@@ -5,6 +5,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.provider.VoicemailContract.Voicemails
 import android.util.Log
+import app.dialtone.phone.data.VoicemailDuplicates
 
 /** Finds voicemails that have audio but no transcript, and transcribes them on the phone. */
 class VoicemailTranscriber(private val context: Context) {
@@ -31,17 +32,31 @@ class VoicemailTranscriber(private val context: Context) {
     private fun pendingIds(): List<Long> {
         val tried = Transcription.attemptedIds(context)
         val ids = mutableListOf<Long>()
+        val rows = mutableListOf<VoicemailDuplicates.Row>()
         runCatching {
             context.contentResolver.query(
                 Voicemails.CONTENT_URI,
-                arrayOf(Voicemails._ID),
-                "${Voicemails.HAS_CONTENT} = 1 AND ${Voicemails.DELETED} = 0 AND " +
-                    "(${Voicemails.TRANSCRIPTION} IS NULL OR ${Voicemails.TRANSCRIPTION} = '')",
+                arrayOf(
+                    Voicemails._ID, Voicemails.HAS_CONTENT, Voicemails.TRANSCRIPTION,
+                    Voicemails.SOURCE_PACKAGE, Voicemails.SOURCE_DATA, Voicemails.NUMBER,
+                    Voicemails.DATE, Voicemails.DURATION,
+                ),
+                "${Voicemails.DELETED} = 0",
                 null,
                 "${Voicemails.DATE} DESC",
-            )?.use { c -> while (c.moveToNext()) ids += c.getLong(0) }
+            )?.use { c ->
+                while (c.moveToNext()) {
+                    val id = c.getLong(0)
+                    rows += VoicemailDuplicates.Row(
+                        id, c.getString(3), c.getString(4), c.getString(5).orEmpty(), c.getLong(6), c.getLong(7),
+                    )
+                    if (c.getInt(1) == 1 && c.getString(2).isNullOrBlank()) ids += id
+                }
+            }
         }.onFailure { Log.w(TAG, "query failed: $it") }
-        return ids.filterNot { it in tried }.take(MAX_PER_RUN)
+        // Skip hidden copies of a message (another app's duplicate of Dialtone's own row).
+        val hidden = VoicemailDuplicates.match(rows, context.packageName).keys
+        return ids.filterNot { it in tried || it in hidden }.take(MAX_PER_RUN)
     }
 
     private fun transcribeOne(engine: MoonshineEngine, id: Long) {
