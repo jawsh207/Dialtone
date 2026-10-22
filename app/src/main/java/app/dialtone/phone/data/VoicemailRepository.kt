@@ -57,7 +57,38 @@ class VoicemailRepository(private val context: Context) {
         } catch (_: IllegalArgumentException) {
             // Some OEM builds lack a voicemail provider.
         }
-        merge(out, VoicemailDuplicates.match(rows, context.packageName))
+        val dupes = VoicemailDuplicates.match(rows, context.packageName)
+        val removed = removeDuplicates(out, dupes)
+        merge(out.filterNot { it.id in removed }, dupes - removed)
+    }
+
+    /**
+     * Deletes other apps' copies of messages Dialtone has synced itself (e.g. what the stock
+     * dialer downloaded before the switch), so one copy of each message remains. Only once our
+     * copy has its audio; its transcript and read state are carried over first. This removes the
+     * local copy only (a hard delete, not the DELETED flag), so nothing changes on the carrier's
+     * server. Returns the ids deleted.
+     */
+    private fun removeDuplicates(list: List<Voicemail>, dupes: Map<Long, Long>): Set<Long> {
+        val byId = list.associateBy { it.id }
+        val removed = mutableSetOf<Long>()
+        for ((otherId, mainId) in dupes) {
+            val main = byId[mainId] ?: continue
+            val other = byId[otherId] ?: continue
+            if (main.sourcePackage != context.packageName || !main.hasContent) continue
+            val values = ContentValues()
+            if (main.transcription.isNullOrBlank() && !other.transcription.isNullOrBlank()) {
+                values.put(Voicemails.TRANSCRIPTION, other.transcription)
+            }
+            if (!main.isRead && other.isRead) values.put(Voicemails.IS_READ, 1)
+            if (values.size() > 0) {
+                runCatching { context.contentResolver.update(main.uri, values, null, null) }
+            }
+            val ok = runCatching { context.contentResolver.delete(other.uri, null, null) > 0 }
+                .getOrDefault(false)
+            if (ok) removed += otherId
+        }
+        return removed
     }
 
     /**
@@ -100,7 +131,13 @@ class VoicemailRepository(private val context: Context) {
 
     /** Flag as deleted so the carrier client also removes it from the server on next sync. */
     suspend fun delete(vm: Voicemail) = withContext(Dispatchers.IO) {
-        for (id in listOf(vm.id) + vm.duplicateIds) {
+        // Other apps' local copies: remove outright (our copy carries the server delete).
+        for (id in vm.duplicateIds) {
+            runCatching {
+                context.contentResolver.delete(ContentUris.withAppendedId(Voicemails.CONTENT_URI, id), null, null)
+            }
+        }
+        for (id in listOf(vm.id)) {
             val uri = ContentUris.withAppendedId(Voicemails.CONTENT_URI, id)
             val flagged = runCatching {
                 context.contentResolver.update(
