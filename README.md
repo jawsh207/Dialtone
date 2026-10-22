@@ -25,40 +25,37 @@ modern Pixel dialer: dynamic color, shape-morphing buttons, expressive avatar sh
 
 ## Build & install
 
-Every push to `main` builds on GitHub Actions (**Actions → Build**). Download the APK from the
-run's **Artifacts**, or push a tag like `v0.2.0` to publish a GitHub Release with the APK attached.
+Every push to `main` produces an optimized release APK (R8-shrunk, non-debuggable) signed with
+Dialtone's release key; download it from the run's **Artifacts** under **Actions → Build**.
+Each build has a higher version code, so it installs as an update over the last one. Push a tag
+like `v0.2.0` to also publish a GitHub Release with the APK attached.
 
 1. Install the APK on a **real phone with a SIM** (Android 10+). Emulators can't place real calls.
 2. Open Dialtone, tap **Set as default** and pick it. Grant the permissions it asks for.
 
 To go back, change *Settings → Apps → Default apps → Phone app*.
 
-### Signing (so updates install over each other)
+### Signing
 
-Without signing secrets, CI ships a **debug** APK signed with a throwaway key that changes from
-run to run, so each new build must be uninstalled before installing. To get a stable, signed
-release APK, create a keystore once and add four repository secrets
-(*Settings → Secrets and variables → Actions*):
-
-```sh
-keytool -genkeypair -v -keystore dialtone.jks -alias dialtone \
-  -keyalg RSA -keysize 4096 -validity 10000
-base64 -w0 dialtone.jks   # → DIALTONE_KEYSTORE_BASE64
-```
+CI needs four repository secrets (*Settings → Secrets and variables → Actions*). Without them
+the code still compiles but no APK is published.
 
 | Secret | Value |
 | --- | --- |
-| `DIALTONE_KEYSTORE_BASE64` | the base64 output above |
+| `DIALTONE_KEYSTORE_BASE64` | the keystore file, base64-encoded on one line |
 | `DIALTONE_KEYSTORE_PASSWORD` | keystore password |
 | `DIALTONE_KEY_ALIAS` | `dialtone` |
-| `DIALTONE_KEY_PASSWORD` | key password |
+| `DIALTONE_KEY_PASSWORD` | key password (same as the keystore password for PKCS12) |
 
-Keep `dialtone.jks` and its passwords backed up: Android only accepts updates signed with the
-same key.
+Keep the keystore and its password backed up privately: Android only accepts updates signed
+with the same key, and anyone holding it can sign APKs that install over Dialtone. To make a
+new one: `keytool -genkeypair -keystore dialtone.jks -storetype PKCS12 -alias dialtone
+-keyalg RSA -keysize 4096 -validity 10000`, then `base64 -w0 dialtone.jks`.
 
 ### Building locally
 
-Open the folder in a recent Android Studio that supports AGP 9.1, or run `./gradlew assembleDebug`.
+Open the folder in a recent Android Studio that supports AGP 9.1, or run `./gradlew assembleDebug`
+for a local debug build. Release builds use R8 with the rules in `app/proguard-rules.pro`.
 
 ### Versions
 

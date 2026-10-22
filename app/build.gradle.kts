@@ -17,8 +17,8 @@ android {
         versionName = System.getenv("DIALTONE_VERSION_NAME") ?: "0.1.0"
     }
 
-    // Release signing comes from the environment (GitHub secrets in CI); without it,
-    // release builds are left unsigned and CI ships the debug build instead.
+    // Release signing comes from the environment (GitHub secrets in CI). Every build CI ships
+    // is an optimized release build signed with this key, so each one installs as an update.
     val keystorePath = System.getenv("DIALTONE_KEYSTORE_FILE")
     if (keystorePath != null) {
         signingConfigs {
@@ -33,7 +33,13 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8: shrink, optimize and obfuscate; drop unused resources.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             signingConfig = signingConfigs.findByName("release")
         }
     }
