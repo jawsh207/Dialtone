@@ -260,7 +260,7 @@ private fun statusText(snap: CallSnapshot): String {
 /** Avatar on a slowly rotating 12-sided cookie while the call is connecting. */
 @Composable
 private fun CallerHalo(name: String?, photoUri: String?, seed: Long, animate: Boolean) {
-    val halo = remember { MaterialShapes.Cookie12Sided.toShape() }
+    val halo = MaterialShapes.Cookie12Sided.toShape()
     val transition = rememberInfiniteTransition(label = "halo")
     val angle by transition.animateFloat(
         0f, 360f, infiniteRepeatable(tween(16_000, easing = LinearEasing)), label = "angle",

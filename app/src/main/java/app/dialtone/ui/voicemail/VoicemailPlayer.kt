@@ -45,17 +45,17 @@ class VoicemailPlayer(private val context: Context) {
                 )
                 setDataSource(context, vm.uri)
                 setOnPreparedListener {
-                    durationMs = it.duration
+                    this@VoicemailPlayer.durationMs = it.duration
                     it.start()
-                    isPlaying = true
+                    this@VoicemailPlayer.isPlaying = true
                 }
                 setOnCompletionListener {
-                    isPlaying = false
-                    positionMs = durationMs
+                    this@VoicemailPlayer.isPlaying = false
+                    this@VoicemailPlayer.positionMs = this@VoicemailPlayer.durationMs
                 }
                 setOnErrorListener { _, _, _ ->
-                    isPlaying = false
-                    error = "Couldn't play this voicemail"
+                    this@VoicemailPlayer.isPlaying = false
+                    this@VoicemailPlayer.error = "Couldn't play this voicemail"
                     true
                 }
                 prepareAsync()

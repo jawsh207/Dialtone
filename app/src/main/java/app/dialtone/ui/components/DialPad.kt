@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val keys = listOf(
+private val dialKeys = listOf(
     '1' to "", '2' to "ABC", '3' to "DEF",
     '4' to "GHI", '5' to "JKL", '6' to "MNO",
     '7' to "PQRS", '8' to "TUV", '9' to "WXYZ",
@@ -45,7 +45,7 @@ private val keys = listOf(
 
 /** Letter → digit, for T9 contact matching. */
 val T9: Map<Char, Char> = buildMap {
-    keys.forEach { (digit, letters) -> letters.lowercase().forEach { put(it, digit) } }
+    dialKeys.forEach { (digit, letters) -> letters.lowercase().forEach { put(it, digit) } }
 }
 
 /**
@@ -60,7 +60,7 @@ fun DialPad(
     onLongKey: ((Char) -> Unit)? = null,
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        keys.chunked(3).forEach { row ->
+        dialKeys.chunked(3).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { (digit, letters) ->
                     DialKey(
