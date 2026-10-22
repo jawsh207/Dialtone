@@ -26,6 +26,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # full history + tags, for release notes
 
       - uses: actions/setup-java@v5
         with:
@@ -92,10 +94,34 @@ jobs:
           name: Dialtone-${{ env.DIALTONE_VERSION_NAME }}
           path: out/*.apk
 
+      - name: Write release notes
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          git fetch --force --tags origin >/dev/null 2>&1 || true
+          TAG="$GITHUB_REF_NAME"
+          PREV=$(git describe --tags --abbrev=0 --match 'v*' "${TAG}^" 2>/dev/null || true)
+          {
+            # Summary written in the annotated tag message, if any.
+            if [ "$(git cat-file -t "$TAG")" = "tag" ]; then
+              git tag -l --format='%(contents)' "$TAG" | sed '/^-----BEGIN PGP/,$d'
+              echo
+            fi
+            echo "## Changes"
+            echo
+            if [ -n "$PREV" ]; then RANGE="$PREV..$TAG"; else RANGE="$TAG"; fi
+            git log --no-merges --format='- %s' "$RANGE"
+            echo
+            if [ -n "$PREV" ]; then
+              echo "**Full changelog:** https://github.com/$GITHUB_REPOSITORY/compare/$PREV...$TAG"
+            fi
+          } > release-notes.md
+          cat release-notes.md
+
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${GITHUB_REF_NAME}" out/*.apk \
-            --title "Dialtone ${GITHUB_REF_NAME}" --generate-notes
+            --title "Dialtone ${GITHUB_REF_NAME}" --notes-file release-notes.md
