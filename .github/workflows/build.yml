@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
+      # versionCode rises with every run, so each APK installs as an update.
       DIALTONE_VERSION_CODE: ${{ github.run_number }}
       DIALTONE_VERSION_NAME: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('0.1.0-ci.{0}', github.run_number) }}
       HAS_SIGNING: ${{ secrets.DIALTONE_KEYSTORE_BASE64 != '' }}
@@ -33,11 +34,23 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v5
 
-      - name: Build debug APK
+      - name: Decode signing key
+        if: env.HAS_SIGNING == 'true'
+        run: |
+          echo "${{ secrets.DIALTONE_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/dialtone.jks"
+          echo "DIALTONE_KEYSTORE_FILE=$RUNNER_TEMP/dialtone.jks" >> "$GITHUB_ENV"
+
+      # Optimized (R8, non-debuggable) release build. Without the signing secrets it still
+      # compiles, so code errors show up, but no APK is published.
+      - name: Build release APK
         shell: bash
+        env:
+          DIALTONE_KEYSTORE_PASSWORD: ${{ secrets.DIALTONE_KEYSTORE_PASSWORD }}
+          DIALTONE_KEY_ALIAS: ${{ secrets.DIALTONE_KEY_ALIAS }}
+          DIALTONE_KEY_PASSWORD: ${{ secrets.DIALTONE_KEY_PASSWORD }}
         run: |
           set -o pipefail
-          ./gradlew --stacktrace assembleDebug 2>&1 | tee build.log
+          ./gradlew --stacktrace assembleRelease 2>&1 | tee build.log
 
       - name: Report build errors
         if: failure()
@@ -49,7 +62,7 @@ jobs:
           lines = open("build.log", errors="replace").read().splitlines()
           picked = []
           for i, line in enumerate(lines):
-              if re.match(r"^(e: |w: .*error)|.*error:|^\* What went wrong|^FAILURE|Could not resolve|> ", line):
+              if re.match(r"^(e: |w: .*error)|.*error:|^\* What went wrong|^FAILURE|Could not resolve|> |^ERROR:|Missing class", line):
                   picked.extend(lines[i:i + (120 if line.startswith("* What went wrong") else 1)])
           seen, uniq = set(), []
           for l in picked:
@@ -62,27 +75,16 @@ jobs:
               print(f"::error title=Build errors {n}/{len(chunks)}::{msg}")
           PYEOF
 
-      - name: Decode signing key
-        if: env.HAS_SIGNING == 'true'
+      - name: Require signing key
+        if: env.HAS_SIGNING != 'true'
         run: |
-          echo "${{ secrets.DIALTONE_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/dialtone.jks"
-          echo "DIALTONE_KEYSTORE_FILE=$RUNNER_TEMP/dialtone.jks" >> "$GITHUB_ENV"
+          echo "::error title=Signing key missing::Add the DIALTONE_KEYSTORE_BASE64, DIALTONE_KEYSTORE_PASSWORD, DIALTONE_KEY_ALIAS and DIALTONE_KEY_PASSWORD repository secrets (see README › Signing). The code compiled, but no APK is published without them."
+          exit 1
 
-      - name: Build signed release APK
-        if: env.HAS_SIGNING == 'true'
-        env:
-          DIALTONE_KEYSTORE_PASSWORD: ${{ secrets.DIALTONE_KEYSTORE_PASSWORD }}
-          DIALTONE_KEY_ALIAS: ${{ secrets.DIALTONE_KEY_ALIAS }}
-          DIALTONE_KEY_PASSWORD: ${{ secrets.DIALTONE_KEY_PASSWORD }}
-        run: ./gradlew --stacktrace assembleRelease
-
-      - name: Collect APKs
+      - name: Collect APK
         run: |
           mkdir -p out
-          cp app/build/outputs/apk/debug/app-debug.apk "out/Dialtone-${DIALTONE_VERSION_NAME}-debug.apk"
-          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
-            cp app/build/outputs/apk/release/app-release.apk "out/Dialtone-${DIALTONE_VERSION_NAME}.apk"
-          fi
+          cp app/build/outputs/apk/release/app-release.apk "out/Dialtone-${DIALTONE_VERSION_NAME}.apk"
           ls -la out
 
       - uses: actions/upload-artifact@v4
