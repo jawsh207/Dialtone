@@ -25,15 +25,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Voicemail
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Voicemail
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Dialpad
-import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Voicemail
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.FloatingActionButton
@@ -78,11 +80,11 @@ import app.dialtone.ui.voicemail.VoicemailScreen
 import app.dialtone.voicemail.VoicemailNotifier
 import app.dialtone.util.formatNumber
 
+// Matches the Contacts app: outlined icons, filled while the tab is selected.
 private enum class Tab(val label: String, val icon: ImageVector, val selectedIcon: ImageVector) {
-    Home("Home", Icons.Rounded.Home, Icons.Rounded.Home),
-    // Matches the Contacts app: outlined person, filled while selected.
+    Home("Home", Icons.Outlined.Home, Icons.Filled.Home),
     Contacts("Contacts", Icons.Outlined.Person, Icons.Filled.Person),
-    Voicemail("Voicemail", Icons.Rounded.Voicemail, Icons.Rounded.Voicemail),
+    Voicemail("Voicemail", Icons.Outlined.Voicemail, Icons.Filled.Voicemail),
 }
 
 /**
