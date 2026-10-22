@@ -1,15 +1,15 @@
 # R8 rules for Dialtone release builds.
 
-# --- Visual voicemail engine (app.dialtone.vvm) ---
+# --- Visual voicemail engine (app.dialtone.phone.vvm) ---
 # Tasks are stored in intents/jobs by class name and recreated with
 # Class.forName(name).getDeclaredConstructor().newInstance(). Keep their names and
 # no-arg constructors stable, including across app updates with jobs still queued.
--keep class * implements app.dialtone.vvm.scheduling.Task {
+-keep class * implements app.dialtone.phone.vvm.scheduling.Task {
     <init>();
 }
--keep @app.dialtone.vvm.compat.UsedByReflection class * { *; }
+-keep @app.dialtone.phone.vvm.compat.UsedByReflection class * { *; }
 -keepclassmembers class * {
-    @app.dialtone.vvm.compat.UsedByReflection *;
+    @app.dialtone.phone.vvm.compat.UsedByReflection *;
 }
 
 # --- Apache Mime4j (IMAP message parsing) and its commons-io dependency ---

@@ -4,12 +4,12 @@ plugins {
 }
 
 android {
-    namespace = "app.dialtone"
+    namespace = "app.dialtone.phone"
     // Material 3 Expressive (1.5 alpha) requires compileSdk 37 and AGP 9.1+.
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "app.dialtone"
+        applicationId = "app.dialtone.phone"
         minSdk = 29 // RoleManager.ROLE_DIALER
         targetSdk = 36
         // CI passes the run number / tag so every build installs over the previous one.

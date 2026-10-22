@@ -62,7 +62,7 @@
             android:launchMode="singleTop"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
-            android:taskAffinity="app.dialtone.incall" />
+            android:taskAffinity="app.dialtone.phone.incall" />
 
         <!-- Telecom binds this while calls exist. Telecom plays the ringtone
              (IN_CALL_SERVICE_RINGING is left off on purpose). -->
@@ -101,7 +101,7 @@
                 <action android:name="android.telephony.action.SHOW_VOICEMAIL_NOTIFICATION" />
             </intent-filter>
             <intent-filter>
-                <action android:name="app.dialtone.vvm.VoicemailClient.ACTION_SHOW_LEGACY_VOICEMAIL" />
+                <action android:name="app.dialtone.phone.vvm.VoicemailClient.ACTION_SHOW_LEGACY_VOICEMAIL" />
             </intent-filter>
         </receiver>
         <receiver
@@ -128,14 +128,14 @@
             android:directBootAware="true"
             android:exported="false">
             <intent-filter>
-                <action android:name="app.dialtone.vvm.sms.SMS_RECEIVED" />
+                <action android:name="app.dialtone.phone.vvm.sms.SMS_RECEIVED" />
             </intent-filter>
         </receiver>
         <receiver
             android:name=".vvm.VoicemailClientReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="app.dialtone.vvm.VoicemailClient.ACTION_UPLOAD" />
+                <action android:name="app.dialtone.phone.vvm.VoicemailClient.ACTION_UPLOAD" />
             </intent-filter>
         </receiver>
         <receiver
