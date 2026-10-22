@@ -1,0 +1,73 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write # create releases on tags
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DIALTONE_VERSION_CODE: ${{ github.run_number }}
+      DIALTONE_VERSION_NAME: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('0.1.0-ci.{0}', github.run_number) }}
+      HAS_SIGNING: ${{ secrets.DIALTONE_KEYSTORE_BASE64 != '' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        run: ./gradlew --stacktrace assembleDebug
+
+      - name: Decode signing key
+        if: env.HAS_SIGNING == 'true'
+        run: |
+          echo "${{ secrets.DIALTONE_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/dialtone.jks"
+          echo "DIALTONE_KEYSTORE_FILE=$RUNNER_TEMP/dialtone.jks" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK
+        if: env.HAS_SIGNING == 'true'
+        env:
+          DIALTONE_KEYSTORE_PASSWORD: ${{ secrets.DIALTONE_KEYSTORE_PASSWORD }}
+          DIALTONE_KEY_ALIAS: ${{ secrets.DIALTONE_KEY_ALIAS }}
+          DIALTONE_KEY_PASSWORD: ${{ secrets.DIALTONE_KEY_PASSWORD }}
+        run: ./gradlew --stacktrace assembleRelease
+
+      - name: Collect APKs
+        run: |
+          mkdir -p out
+          cp app/build/outputs/apk/debug/app-debug.apk "out/Dialtone-${DIALTONE_VERSION_NAME}-debug.apk"
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk "out/Dialtone-${DIALTONE_VERSION_NAME}.apk"
+          fi
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Dialtone-${{ env.DIALTONE_VERSION_NAME }}
+          path: out/*.apk
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" out/*.apk \
+            --title "Dialtone ${GITHUB_REF_NAME}" --generate-notes
