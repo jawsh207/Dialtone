@@ -102,7 +102,7 @@ possible without carrier or system privileges.
 ## Layout
 
 ```
-app/src/main/java/app/dialtone/
+app/src/main/java/app/dialtone/phone/
   MainActivity.kt              default-dialer onboarding, DIAL intents, permissions
   telecom/                     InCallService, call state, notifications, helpers
   incall/                      in-call activity and screen
@@ -127,6 +127,6 @@ The handset is the GrapheneOS Dialer launcher icon (Apache-2.0), recolored white
 
 ## License notes
 
-Code in `app/src/main/java/app/dialtone/vvm/` and `res/xml/vvm_config.xml` comes from the
+Code in `app/src/main/java/app/dialtone/phone/vvm/` and `res/xml/vvm_config.xml` comes from the
 Android Open Source Project Dialer (via GrapheneOS) under the Apache License 2.0; original
 copyright headers are kept and modified files are marked. See `NOTICE`.
