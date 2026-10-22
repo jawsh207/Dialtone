@@ -1,3 +1,10 @@
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.security.MessageDigest
+import java.time.Duration
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -92,7 +99,7 @@ val moonshineModel = mapOf(
     "file" to "moonshine-tiny-Q8_0.gguf",
     "size" to "35466912",
     // Pinned after the first verified download; empty = report the hash instead of checking it.
-    "sha256" to "",
+    "sha256" to "2fd348d7b38f97d309cc3ec6848f3f57f537b80244950f07d2637e463f95a3a1",
 )
 
 abstract class DownloadModelTask : DefaultTask() {
@@ -109,13 +116,13 @@ abstract class DownloadModelTask : DefaultTask() {
         if (!cached.isFile || !verify(cached, quiet = true)) {
             cached.parentFile.mkdirs()
             logger.lifecycle("Downloading ${url.get()}")
-            val client = java.net.http.HttpClient.newBuilder()
-                .followRedirects(java.net.http.HttpClient.Redirect.NORMAL)
-                .connectTimeout(java.time.Duration.ofSeconds(30))
+            val client = HttpClient.newBuilder()
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .connectTimeout(Duration.ofSeconds(30))
                 .build()
-            val request = java.net.http.HttpRequest.newBuilder(java.net.URI.create(url.get())).GET().build()
+            val request = HttpRequest.newBuilder(URI.create(url.get())).GET().build()
             val tmp = File(cached.path + ".part")
-            val response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofFile(tmp.toPath()))
+            val response = client.send(request, HttpResponse.BodyHandlers.ofFile(tmp.toPath()))
             if (response.statusCode() != 200) throw GradleException("Model download failed: HTTP ${response.statusCode()}")
             if (!verify(tmp, quiet = false)) throw GradleException("Downloaded model failed verification")
             tmp.renameTo(cached)
@@ -130,7 +137,7 @@ abstract class DownloadModelTask : DefaultTask() {
             if (!quiet) logger.error("Model size ${file.length()} != expected ${expectedSize.get()}")
             return false
         }
-        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        val digest = MessageDigest.getInstance("SHA-256")
         file.inputStream().use { input ->
             val buffer = ByteArray(1 shl 16)
             while (true) {
