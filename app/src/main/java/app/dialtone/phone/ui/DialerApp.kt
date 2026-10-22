@@ -2,6 +2,10 @@ package app.dialtone.phone.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -107,7 +111,12 @@ fun DialerApp(
     val vvmHealth by vm.vvmHealth.collectAsStateWithLifecycle()
     val transcription by vm.transcription.collectAsStateWithLifecycle()
 
-    var tab by rememberSaveable { mutableStateOf(Tab.Home) }
+    // Tabs are pages: swipe between them, or tap the bottom bar. The pager state is saveable,
+    // so the open tab survives rotation. targetPage (not currentPage) so the bar highlights
+    // where a swipe or tap is heading, without flickering through the middle tab.
+    val pager = rememberPagerState(initialPage = Tab.Home.ordinal) { Tab.entries.size }
+    val tab = Tab.entries[pager.targetPage]
+    val scope = rememberCoroutineScope()
     var keypadOpen by rememberSaveable { mutableStateOf(false) }
     var keypadText by rememberSaveable { mutableStateOf("") }
     var query by rememberSaveable { mutableStateOf<String?>(null) } // null = not searching
@@ -125,7 +134,7 @@ fun DialerApp(
     }
     LaunchedEffect(openVoicemail) {
         if (openVoicemail) {
-            tab = Tab.Voicemail
+            pager.scrollToPage(Tab.Voicemail.ordinal)
             keypadOpen = false
             query = null
             onOpenVoicemailConsumed()
@@ -178,7 +187,10 @@ fun DialerApp(
                         val selected = tab == t && query == null
                         ShortNavigationBarItem(
                             selected = selected,
-                            onClick = { tab = t; query = null },
+                            onClick = {
+                                query = null
+                                scope.launch { pager.animateScrollToPage(t.ordinal) }
+                            },
                             icon = {
                                 val icon = if (selected) t.selectedIcon else t.icon
                                 if (t == Tab.Voicemail && unread > 0) {
@@ -207,12 +219,12 @@ fun DialerApp(
             if (q != null) {
                 SearchResults(q, contacts, call, padding)
             } else {
-                AnimatedContent(
-                    targetState = tab,
-                    transitionSpec = { fadeIn(effects) togetherWith fadeOut(effects) },
-                    label = "tabs",
-                ) { t ->
-                    when (t) {
+                HorizontalPager(
+                    state = pager,
+                    modifier = Modifier.fillMaxSize(),
+                    key = { Tab.entries[it] },
+                ) { page ->
+                    when (Tab.entries[page]) {
                         Tab.Home -> HomeScreen(favorites, recents, contactIndex, call, padding)
                         Tab.Contacts -> ContactsScreen(contacts, call, padding)
                         Tab.Voicemail -> VoicemailScreen(
