@@ -114,7 +114,7 @@ fun InCallRoute(onFinished: () -> Unit) {
         }
     }
 
-    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surfaceContainerLowest) {
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         if (call != null) {
             val snap = remember(call, version) { call.snapshot() }
             InCallContent(call, snap, audio)

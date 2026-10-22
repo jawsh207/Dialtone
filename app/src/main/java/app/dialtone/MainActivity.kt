@@ -15,7 +15,7 @@ import androidx.compose.runtime.setValue
 import app.dialtone.telecom.Dialer
 import app.dialtone.ui.DialerApp
 import app.dialtone.ui.onboarding.SetDefaultScreen
-import app.dialtone.ui.theme.DialtoneTheme
+import app.dialtone.ui.theme.ContactsMatchTheme
 import app.dialtone.util.hasPermission
 import app.dialtone.voicemail.VoicemailNotifier
 import app.dialtone.vvm.DialtoneVoicemail
@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity() {
         if (isDefault) requestRuntimePermissions()
 
         setContent {
-            DialtoneTheme {
+            ContactsMatchTheme {
                 if (isDefault) {
                     DialerApp(
                         pendingNumber = pendingNumber,

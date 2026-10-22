@@ -4,10 +4,11 @@ kotlin = "2.2.10"
 coreKtx = "1.16.0"
 activityCompose = "1.10.1"
 lifecycle = "2.9.2"
-composeBom = "2025.08.00"
-# Material 3 Expressive APIs (MaterialExpressiveTheme, MaterialShapes, LoadingIndicator,
-# wavy progress, MotionScheme.expressive) live in the 1.5 alpha line.
-material3 = "1.5.0-alpha26"
+composeBom = "2026.09.00"
+# Material 3 1.5 (beta): MaterialExpressiveTheme, ShortNavigationBar, MaterialShapes,
+# LoadingIndicator, wavy progress. Pinned explicitly over the BOM.
+material3 = "1.5.0-beta01"
+# Icons are no longer versioned in the Compose BOM; 1.7.8 is the final release.
 materialIcons = "1.7.8"
 # MIME parsing for the visual voicemail engine (IMAP message bodies).
 mime4j = "0.8.9"

@@ -63,8 +63,8 @@ Open the folder in a recent Android Studio that supports AGP 9.1, or run `./grad
 ### Versions
 
 `gradle/libs.versions.toml` pins AGP 9.1.1 (Gradle 9.3.1, built-in Kotlin 2.2.10), compileSdk 37,
-Compose BOM 2025.08 and `material3 1.5.0-alpha26` (the Expressive APIs are in the 1.5 alpha
-line, which requires AGP 9.1+ and compileSdk 37). The Expressive APIs used are `MaterialExpressiveTheme`,
+Compose BOM 2026.09.00 and `material3 1.5.0-beta01` (the 1.5 line requires AGP 9.1+ and
+compileSdk 37). The Expressive APIs used are `MaterialExpressiveTheme`,
 `MotionScheme.expressive()`, `MaterialShapes` + `toShape()`, `LoadingIndicator` and
 `LinearWavyProgressIndicator`.
 
@@ -117,6 +117,12 @@ app/src/main/java/app/dialtone/
     compat/                    small stand-ins for Dialer-internal helpers
 app/src/main/res/xml/vvm_config.xml   per-carrier visual voicemail settings (AOSP)
 ```
+
+## Look
+
+Dialtone uses the same theme as the Contacts app: wallpaper (dynamic) colour on Android 12+,
+Google Sans Flex for all text, `surfaceContainerLow` pages, `surfaceBright` cards, a
+`surfaceContainerHighest` search bar and Material 3's 64dp `ShortNavigationBar`.
 
 ## App icon
 

@@ -173,7 +173,7 @@ fun VoicemailSettingsSheet(
             accounts.forEachIndexed { i, account ->
                 Surface(
                     shape = segmentShape(i, accounts.size),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    color = MaterialTheme.colorScheme.surfaceBright,
                     modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
                 ) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -228,7 +228,7 @@ fun VoicemailSettingsSheet(
                     Spacer(Modifier.padding(top = 8.dp))
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        color = MaterialTheme.colorScheme.surfaceBright,
                         modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
                     ) {
                         Text(

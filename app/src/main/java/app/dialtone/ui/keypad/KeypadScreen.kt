@@ -96,7 +96,7 @@ fun KeypadScreen(
                     Surface(
                         onClick = { onCall(pn.number) },
                         shape = segmentShape(i, matches.size),
-                        color = scheme.surfaceContainer,
+                        color = scheme.surfaceBright,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {

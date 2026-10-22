@@ -180,7 +180,7 @@ private fun RecentRow(
     val label = contact?.numbers?.firstOrNull { numberKey(it.number) == numberKey(call.number) }?.label
     val subtitle = listOfNotNull(label, formatShortDate(context, call.date)).joinToString(" • ")
     val container by animateColorAsState(
-        if (expanded) scheme.surfaceContainerHighest else scheme.surfaceContainer,
+        scheme.surfaceBright, // cards: surfaceBright, as in Contacts
         MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "row",
     )

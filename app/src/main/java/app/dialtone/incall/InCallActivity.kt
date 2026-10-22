@@ -8,7 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import app.dialtone.telecom.CallManager
-import app.dialtone.ui.theme.DialtoneTheme
+import app.dialtone.ui.theme.ContactsMatchTheme
 
 class InCallActivity : ComponentActivity() {
 
@@ -21,7 +21,7 @@ class InCallActivity : ComponentActivity() {
         setTurnScreenOn(true)
         handle(intent)
         setContent {
-            DialtoneTheme {
+            ContactsMatchTheme {
                 InCallRoute(onFinished = { finishAndRemoveTask() })
             }
         }

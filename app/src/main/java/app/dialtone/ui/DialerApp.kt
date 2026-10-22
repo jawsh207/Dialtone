@@ -25,10 +25,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Contacts
 import androidx.compose.material.icons.rounded.Dialpad
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Search
@@ -39,8 +40,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -66,6 +66,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.dialtone.data.CallType
 import app.dialtone.data.Contact
 import app.dialtone.telecom.Dialer
+import app.dialtone.ui.components.ContactsMatchBottomBar
 import app.dialtone.ui.components.EmptyState
 import app.dialtone.ui.components.SectionHeader
 import app.dialtone.ui.contacts.ContactsScreen
@@ -77,10 +78,11 @@ import app.dialtone.ui.voicemail.VoicemailScreen
 import app.dialtone.voicemail.VoicemailNotifier
 import app.dialtone.util.formatNumber
 
-private enum class Tab(val label: String, val icon: ImageVector) {
-    Home("Home", Icons.Rounded.Home),
-    Contacts("Contacts", Icons.Rounded.Contacts),
-    Voicemail("Voicemail", Icons.Rounded.Voicemail),
+private enum class Tab(val label: String, val icon: ImageVector, val selectedIcon: ImageVector) {
+    Home("Home", Icons.Rounded.Home, Icons.Rounded.Home),
+    // Matches the Contacts app: outlined person, filled while selected.
+    Contacts("Contacts", Icons.Outlined.Person, Icons.Filled.Person),
+    Voicemail("Voicemail", Icons.Rounded.Voicemail, Icons.Rounded.Voicemail),
 }
 
 /**
@@ -167,16 +169,18 @@ fun DialerApp(
                 )
             },
             bottomBar = {
-                NavigationBar {
+                ContactsMatchBottomBar {
                     Tab.entries.forEach { t ->
-                        NavigationBarItem(
-                            selected = tab == t && query == null,
+                        val selected = tab == t && query == null
+                        ShortNavigationBarItem(
+                            selected = selected,
                             onClick = { tab = t; query = null },
                             icon = {
+                                val icon = if (selected) t.selectedIcon else t.icon
                                 if (t == Tab.Voicemail && unread > 0) {
-                                    BadgedBox(badge = { Badge { Text("$unread") } }) { Icon(t.icon, null) }
+                                    BadgedBox(badge = { Badge { Text("$unread") } }) { Icon(icon, contentDescription = t.label) }
                                 } else {
-                                    Icon(t.icon, null)
+                                    Icon(icon, contentDescription = t.label)
                                 }
                             },
                             label = { Text(t.label) },
@@ -246,7 +250,7 @@ private fun SearchBarPill(
     Surface(
         onClick = { if (query == null) onActiveChange(true) },
         shape = CircleShape,
-        color = scheme.surfaceContainerHigh,
+        color = scheme.surfaceContainerHighest,
         modifier = Modifier
             .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 8.dp)
