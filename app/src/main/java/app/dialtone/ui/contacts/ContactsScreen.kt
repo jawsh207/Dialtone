@@ -120,7 +120,7 @@ private fun ContactRow(
     val context = LocalContext.current
     val scheme = MaterialTheme.colorScheme
     val container by animateColorAsState(
-        if (expanded) scheme.surfaceContainerHighest else scheme.surfaceContainer,
+        scheme.surfaceBright, // cards: surfaceBright, as in Contacts
         MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "contact",
     )

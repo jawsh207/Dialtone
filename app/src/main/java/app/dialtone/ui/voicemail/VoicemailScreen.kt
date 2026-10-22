@@ -217,7 +217,7 @@ private fun VoicemailRow(
     val display = contact?.name ?: if (vm.number.isBlank()) "Unknown" else formatNumber(vm.number)
     val active = player.currentId == vm.id
     val container by animateColorAsState(
-        if (expanded) scheme.surfaceContainerHighest else scheme.surfaceContainer,
+        scheme.surfaceBright, // cards: surfaceBright, as in Contacts
         MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "vm",
     )
