@@ -34,7 +34,33 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Build debug APK
-        run: ./gradlew --stacktrace assembleDebug
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew --stacktrace assembleDebug 2>&1 | tee build.log
+
+      - name: Report build errors
+        if: failure()
+        shell: bash
+        run: |
+          # Surface compiler/Gradle errors as annotations (visible on the run page and via API).
+          python3 - <<'PYEOF'
+          import re
+          lines = open("build.log", errors="replace").read().splitlines()
+          picked = []
+          for i, line in enumerate(lines):
+              if re.match(r"^(e: |w: .*error)|.*error:|^\* What went wrong|^FAILURE|Could not resolve|> ", line):
+                  picked.extend(lines[i:i + (6 if line.startswith("* What went wrong") else 1)])
+          seen, uniq = set(), []
+          for l in picked:
+              if l not in seen:
+                  seen.add(l); uniq.append(l)
+          text = "\n".join(uniq)[:60000] or "\n".join(lines[-80:])
+          chunks = [text[i:i + 6000] for i in range(0, len(text), 6000)][:10]
+          for n, c in enumerate(chunks, 1):
+              msg = c.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+              print(f"::error title=Build errors {n}/{len(chunks)}::{msg}")
+          PYEOF
 
       - name: Decode signing key
         if: env.HAS_SIGNING == 'true'
