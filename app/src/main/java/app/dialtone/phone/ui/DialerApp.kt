@@ -2,6 +2,7 @@ package app.dialtone.phone.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.rememberCoroutineScope
@@ -266,12 +267,14 @@ private fun SearchBarPill(
 ) {
     val scheme = MaterialTheme.colorScheme
     val focus = remember { FocusRequester() }
+    // Opaque strip in the app background colour (status bar included), so lists scrolling
+    // under the search bar don't show through around the pill.
+    Box(Modifier.fillMaxWidth().background(scheme.background).statusBarsPadding()) {
     Surface(
         onClick = { if (query == null) onActiveChange(true) },
         shape = CircleShape,
         color = scheme.surfaceContainerHighest,
         modifier = Modifier
-            .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .fillMaxWidth()
             .height(56.dp),
@@ -308,6 +311,7 @@ private fun SearchBarPill(
                 LaunchedEffect(Unit) { focus.requestFocus() }
             }
         }
+    }
     }
 }
 
