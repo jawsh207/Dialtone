@@ -1,3 +1,4 @@
+# release tag  ->  rewritten commit
 v0.1.0 b157d2860deca4b67bb9f05220091117051e0895
 v0.2.0 55d43144d60c42058eea870b9e36c0bc5b1feec3
 v0.2.1 6c9dd7f3feb3c9bbbc935210a40dcc996534b647
