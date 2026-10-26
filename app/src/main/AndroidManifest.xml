@@ -124,6 +124,7 @@
         <service
             android:name=".transcription.TranscriptionJobService"
             android:exported="false"
+            android:process=":transcriber"
             android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <!-- ===== Visual voicemail engine (ported from AOSP/GrapheneOS Dialer) ===== -->

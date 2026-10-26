@@ -5,6 +5,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.provider.VoicemailContract.Voicemails
 import android.util.Log
+import app.dialtone.phone.vvm.VvmLog
 import app.dialtone.phone.data.VoicemailDuplicates
 
 /** Finds voicemails that have audio but no transcript, and transcribes them with the system recognizer. */
@@ -57,12 +58,20 @@ class VoicemailTranscriber(private val context: Context) {
         val started = System.currentTimeMillis()
         val pcm = AudioDecoder.decodeTo16k(context, uri)?.let(AudioDecoder::normalize)
         if (pcm == null) {
+            VvmLog.w("Transcription", "voicemail $id: couldn't decode the audio")
             Transcription.markAttempted(context, id, transcribed = false)
             return true
         }
+        val recognizer = SystemRecognizer.current(context)
         val outcome = SystemRecognizer.transcribe(context, pcm)
-        Log.i(TAG, "voicemail $id: ${pcm.size / AudioDecoder.TARGET_RATE}s audio -> " +
-            "${outcome::class.simpleName} in ${System.currentTimeMillis() - started} ms")
+        // In the voicemail log (Voicemail settings), so failures can be diagnosed.
+        VvmLog.i(
+            "Transcription",
+            "voicemail $id, ${pcm.size / AudioDecoder.TARGET_RATE}s, " +
+                "recognizer ${recognizer?.packageName ?: "unknown"}, " +
+                "${if (Transcription.appInForeground(context)) "foreground" else "background"}: " +
+                "${SystemRecognizer.describe(outcome)} in ${System.currentTimeMillis() - started} ms",
+        )
         val text = when (outcome) {
             is SystemRecognizer.Outcome.RetryLater -> return false
             is SystemRecognizer.Outcome.Text -> outcome.text.replace(Regex("\\s+"), " ").trim()

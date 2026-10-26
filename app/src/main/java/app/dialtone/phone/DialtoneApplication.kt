@@ -2,6 +2,7 @@ package app.dialtone.phone
 
 import app.dialtone.phone.data.VoicemailRestore
 import android.app.Application
+import app.dialtone.phone.vvm.compat.PersistentLogger
 import app.dialtone.phone.telecom.CallNotifications
 import app.dialtone.phone.transcription.Transcription
 import app.dialtone.phone.voicemail.VoicemailNotifier
@@ -10,12 +11,18 @@ import app.dialtone.phone.vvm.DialtoneVoicemail
 class DialtoneApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        // Transcription runs in its own process so a stuck or crashing recognizer call can
+        // never take down voicemail downloads or notifications. That process only needs the log.
+        if (getProcessName().endsWith(":transcriber")) {
+            PersistentLogger.init(this)
+            return
+        }
         // The engine can start from a system bind (visual voicemail SMS) with no UI running.
         DialtoneVoicemail.init(this)
         CallNotifications.ensureChannels(this)
         VoicemailNotifier.ensureChannel(this)
         // Re-arm the transcription watcher (content-trigger jobs don't survive a reboot or
-        // force-stop). Off the main thread: it checks for the bundled model.
+        // force-stop). Off the main thread: it asks the package manager about recognizers.
         Thread {
             VoicemailRestore.runOnce(this)
             Transcription.schedule(this)

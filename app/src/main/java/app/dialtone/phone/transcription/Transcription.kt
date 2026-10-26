@@ -1,5 +1,6 @@
 package app.dialtone.phone.transcription
 
+import android.app.ActivityManager
 import android.app.job.JobInfo
 import android.app.job.JobScheduler
 import android.content.ComponentName
@@ -14,7 +15,10 @@ import android.provider.VoicemailContract.Voicemails
  * transcripts are never replaced. Dialtone bundles no speech engine.
  */
 object Transcription {
+    // Two files, one writer each: the switch is written by the app, the id sets by the
+    // transcriber process. MODE_MULTI_PROCESS makes each process re-read the other's changes.
     private const val PREFS = "transcription"
+    private const val PREFS_IDS = "transcription_ids"
     private const val KEY_ENABLED = "enabled"
     private const val KEY_DONE = "transcribed_ids"   // written by Dialtone (for the label)
     private const val KEY_TRIED = "attempted_ids"    // tried, success or not (no retry loops)
@@ -26,8 +30,9 @@ object Transcription {
     /** Android 13+ (recordings can be handed to a recognizer) and a recognizer is installed. */
     fun isAvailable(context: Context): Boolean = SystemRecognizer.isSupported(context)
 
-    private fun prefs(context: Context) =
-        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    @Suppress("DEPRECATION")
+    private fun prefs(context: Context, name: String = PREFS) =
+        context.applicationContext.getSharedPreferences(name, Context.MODE_MULTI_PROCESS)
 
     fun isEnabled(context: Context): Boolean =
         prefs(context).getBoolean(KEY_ENABLED, false) && isAvailable(context)
@@ -69,11 +74,20 @@ object Transcription {
         }
     }
 
+    /** Dialtone's UI process is in the foreground (asked from the transcriber process). */
+    fun appInForeground(context: Context): Boolean {
+        val am = context.getSystemService(ActivityManager::class.java) ?: return false
+        return am.runningAppProcesses.orEmpty().any {
+            it.processName == context.packageName &&
+                it.importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+        }
+    }
+
     fun transcribedIds(context: Context): Set<Long> = ids(context, KEY_DONE)
     fun attemptedIds(context: Context): Set<Long> = ids(context, KEY_TRIED)
 
     internal fun markAttempted(context: Context, id: Long, transcribed: Boolean) {
-        val p = prefs(context)
+        val p = prefs(context, PREFS_IDS)
         val tried = (p.getStringSet(KEY_TRIED, emptySet()) ?: emptySet()) + id.toString()
         val editor = p.edit().putStringSet(KEY_TRIED, tried.toList().takeLast(500).toSet())
         if (transcribed) {
@@ -84,5 +98,5 @@ object Transcription {
     }
 
     private fun ids(context: Context, key: String): Set<Long> =
-        (prefs(context).getStringSet(key, emptySet()) ?: emptySet()).mapNotNull { it.toLongOrNull() }.toSet()
+        (prefs(context, PREFS_IDS).getStringSet(key, emptySet()) ?: emptySet()).mapNotNull { it.toLongOrNull() }.toSet()
 }

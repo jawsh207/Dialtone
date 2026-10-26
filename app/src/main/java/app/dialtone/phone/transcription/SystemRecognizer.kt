@@ -162,6 +162,32 @@ object SystemRecognizer {
         return outcome
     }
 
+    /** Short text for the voicemail log. */
+    fun describe(outcome: Outcome): String = when (outcome) {
+        is Outcome.Text -> "transcribed (${outcome.text.length} chars)"
+        Outcome.NoSpeech -> "no speech heard"
+        is Outcome.Failed -> "failed, ${errorName(outcome.error)}; not retried"
+        is Outcome.RetryLater -> "refused, ${errorName(outcome.error)}; will retry"
+    }
+
+    private fun errorName(error: Int): String = when (error) {
+        SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "network timeout"
+        SpeechRecognizer.ERROR_NETWORK -> "network error"
+        SpeechRecognizer.ERROR_AUDIO -> "audio error"
+        SpeechRecognizer.ERROR_SERVER -> "recognizer error"
+        SpeechRecognizer.ERROR_CLIENT -> "client error"
+        SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "timed out"
+        SpeechRecognizer.ERROR_NO_MATCH -> "no match"
+        SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "recognizer busy"
+        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "permission denied"
+        SpeechRecognizer.ERROR_TOO_MANY_REQUESTS -> "too many requests"
+        SpeechRecognizer.ERROR_SERVER_DISCONNECTED -> "recognizer disconnected"
+        SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED -> "language not supported"
+        SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> "model not available"
+        SpeechRecognizer.ERROR_CANNOT_CHECK_SUPPORT -> "can't check support"
+        else -> "error $error"
+    } + " ($error)"
+
     private fun classify(error: Int): Outcome = when (error) {
         SpeechRecognizer.ERROR_NO_MATCH,
         SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> Outcome.NoSpeech
