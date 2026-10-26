@@ -7,6 +7,8 @@ import android.content.Intent
 import android.provider.VoicemailContract
 import android.provider.VoicemailContract.Status
 import android.provider.VoicemailContract.Voicemails
+import android.os.Build
+import app.dialtone.phone.transcription.SystemRecognizer
 import app.dialtone.phone.transcription.Transcription
 import app.dialtone.phone.vvm.DialtoneVoicemail
 import kotlinx.coroutines.Dispatchers
@@ -177,13 +179,20 @@ class VoicemailRepository(private val context: Context) {
     fun syncNow() = DialtoneVoicemail.syncNow(context)
 
     suspend fun transcriptionState(): TranscriptionUi = withContext(Dispatchers.IO) {
+        val recognizer = SystemRecognizer.current(context)
         TranscriptionUi(
+            supported = Build.VERSION.SDK_INT >= 33,
             available = Transcription.isAvailable(context),
+            recognizerName = recognizer?.label,
+            isDistillery = recognizer?.isDistillery == true,
             enabled = Transcription.isEnabled(context),
             onDevice = Transcription.transcribedIds(context),
             attempted = Transcription.attemptedIds(context),
         )
     }
+
+    /** Retry messages left for later (e.g. the recognizer refused while Dialtone was in the background). */
+    fun retryTranscription() = Transcription.schedule(context, runNow = true)
 
     suspend fun setTranscriptionEnabled(enabled: Boolean) = withContext(Dispatchers.IO) {
         Transcription.setEnabled(context, enabled)

@@ -91,22 +91,23 @@ It's the engine from the AOSP Dialer, as shipped in GrapheneOS, ported into `vvm
 Left out from the stock dialer: Google's cloud transcription (needs Google's private API),
 voicemail archiving, and the PIN-change and greeting screens.
 
-### On-device transcription
+### Voicemail transcription
 
-Voicemail settings has a **Transcribe on this phone** switch (off by default). When on,
-voicemails that arrive without a carrier transcript are transcribed on the phone with the
-[Moonshine](https://huggingface.co/UsefulSensors/moonshine-tiny) tiny model (MIT) running in
-[transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) (MIT). Nothing is uploaded.
+Voicemail settings has a **Transcribe voicemail** switch (off by default). When on, voicemails
+that arrive without a carrier transcript are sent to the phone's speech recognizer (the app
+chosen as the system's voice input) and the text it returns is saved with the message.
+Dialtone bundles no speech engine.
 
 - Carrier transcripts always win: they're never replaced, with the switch on or off.
-- The ~35 MB model is downloaded at build time (verified by size and SHA-256) and bundled in
-  the APK; it's copied out once while the switch is on and deleted when it's turned off.
-- Runs as a background job when a new voicemail's audio arrives; long messages are split at
-  pauses into ~20-second pieces.
-- 64-bit ARM only (every phone GrapheneOS supports); elsewhere the switch is hidden.
-- The engine lives in the `app/src/main/cpp/transcribe.cpp` submodule; clone with
-  `--recurse-submodules`. CI's `transcription-smoke` job runs the model on sample audio,
-  including a phone-quality version, and posts the transcripts on the run page.
+- Works with recognizers that accept recordings (`RecognizerIntent.EXTRA_AUDIO_SOURCE`,
+  Android 13+). [Distillery](https://github.com/jawsh207/Distillery) does, on the phone. The
+  audio is passed as 16 kHz mono 16-bit PCM, the format the API documents.
+- A recognizer that only listens to the microphone returns an error, and the message is left
+  without a transcript. An online recognizer may send the audio off the phone; the settings
+  card says which recognizer is in use.
+- Runs as a background job when a new voicemail's audio arrives. Temporary failures (model not
+  downloaded yet, recognizer busy, refused while Dialtone is in the background) are retried on
+  the next voicemail or when Dialtone is opened.
 
 ### If voicemail doesn't show up
 

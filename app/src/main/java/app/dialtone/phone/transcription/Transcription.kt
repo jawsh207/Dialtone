@@ -7,10 +7,11 @@ import android.content.Context
 import android.provider.VoicemailContract.Voicemails
 
 /**
- * On-device voicemail transcription: settings and scheduling.
+ * Voicemail transcription with the phone's speech recognizer: settings and scheduling.
  *
- * When on, a JobScheduler job watches the voicemail store and transcribes messages whose
- * audio has arrived but have no transcript. Carrier transcripts are never replaced.
+ * When on, a JobScheduler job watches the voicemail store and sends messages whose audio has
+ * arrived but have no transcript to the system recognizer (see [SystemRecognizer]). Carrier
+ * transcripts are never replaced. Dialtone bundles no speech engine.
  */
 object Transcription {
     private const val PREFS = "transcription"
@@ -22,9 +23,8 @@ object Transcription {
     private const val JOB_RUN_NOW = 60
     private const val JOB_WATCH = 61
 
-    /** The engine and model are in this build (64-bit ARM). */
-    fun isAvailable(context: Context): Boolean =
-        MoonshineEngine.isSupported && ModelStore.isBundled(context)
+    /** Android 13+ (recordings can be handed to a recognizer) and a recognizer is installed. */
+    fun isAvailable(context: Context): Boolean = SystemRecognizer.isSupported(context)
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -40,7 +40,6 @@ object Transcription {
             val js = context.getSystemService(JobScheduler::class.java)
             js?.cancel(JOB_RUN_NOW)
             js?.cancel(JOB_WATCH)
-            Thread { ModelStore.delete(context.applicationContext) }.start()
         }
     }
 

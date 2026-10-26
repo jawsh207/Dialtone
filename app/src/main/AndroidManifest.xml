@@ -24,6 +24,13 @@
     <uses-permission android:name="com.android.voicemail.permission.WRITE_VOICEMAIL" />
     <uses-permission android:name="com.android.voicemail.permission.ADD_VOICEMAIL" />
 
+    <!-- See installed speech recognizers (voicemail transcription uses the system one). -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
     <application
         android:name=".DialtoneApplication"
         android:icon="@mipmap/ic_launcher"
@@ -113,7 +120,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- ===== On-device voicemail transcription (Moonshine via transcribe.cpp) ===== -->
+        <!-- ===== Voicemail transcription (via the system speech recognizer) ===== -->
         <service
             android:name=".transcription.TranscriptionJobService"
             android:exported="false"

@@ -48,6 +48,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dialtone.phone.data.TranscriptionUi
+import app.dialtone.phone.transcription.SystemRecognizer
+import android.provider.Settings
+import android.content.Intent
 import app.dialtone.phone.data.VvmAccount
 import app.dialtone.phone.data.VvmHealth
 import app.dialtone.phone.ui.components.segmentShape
@@ -202,30 +205,9 @@ fun VoicemailSettingsSheet(
                 }
             }
 
-            if (transcription.available) {
+            if (transcription.supported) {
                 Spacer(Modifier.padding(top = 12.dp))
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surfaceBright,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Transcribe on this phone", style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                "Turns voicemails without a carrier transcript into text, using a " +
-                                    "speech model on this phone. Nothing is uploaded.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Switch(
-                            checked = transcription.enabled,
-                            onCheckedChange = actions.onToggleTranscription,
-                        )
-                    }
-                }
+                TranscriptionCard(transcription, actions.onToggleTranscription)
             }
 
             Spacer(Modifier.padding(top = 16.dp))
@@ -282,6 +264,58 @@ fun VoicemailSettingsSheet(
                     }
                 }
             }
+        }
+    }
+}
+
+/** Transcription switch. Dialtone has no speech engine of its own: it uses the system recognizer. */
+@Composable
+private fun TranscriptionCard(transcription: TranscriptionUi, onToggle: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    val scheme = MaterialTheme.colorScheme
+    val name = transcription.recognizerName
+    val description = when {
+        !transcription.available ->
+            "No speech recognizer is set up. Install one that can transcribe recordings, such as " +
+                "Distillery, and choose it as your phone's voice input."
+        transcription.isDistillery ->
+            "Turns voicemails without a carrier transcript into text with Distillery, on this phone."
+        else ->
+            "Turns voicemails without a carrier transcript into text with " +
+                (name ?: "your phone's speech recognizer") + ". It may not accept recordings, " +
+                "and it may send audio off the phone."
+    }
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = scheme.surfaceBright,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Transcribe voicemail", style = MaterialTheme.typography.titleMedium)
+                    Text(description, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
+                }
+                Spacer(Modifier.width(12.dp))
+                Switch(
+                    checked = transcription.enabled,
+                    enabled = transcription.available,
+                    onCheckedChange = onToggle,
+                )
+            }
+            TextButton(
+                onClick = {
+                    val opened = runCatching {
+                        context.startActivity(SystemRecognizer.settingsIntent().addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    }.isSuccess
+                    if (!opened) {
+                        runCatching {
+                            context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        }
+                    }
+                },
+                modifier = Modifier.padding(start = 0.dp),
+            ) { Text(if (transcription.available) "Change voice input" else "Set up voice input") }
         }
     }
 }

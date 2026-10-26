@@ -281,7 +281,7 @@ private fun VoicemailRow(
                                 if (transcribedOnDevice) {
                                     Spacer(Modifier.height(6.dp))
                                     Text(
-                                        "Transcribed on this phone",
+                                        "Transcribed by Dialtone",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = scheme.onSurfaceVariant,
                                     )
@@ -291,7 +291,7 @@ private fun VoicemailRow(
                         Spacer(Modifier.height(12.dp))
                     } else if (transcribing) {
                         Text(
-                            "Transcribing on this phone…",
+                            "Transcribing…",
                             style = MaterialTheme.typography.bodyMedium,
                             fontStyle = FontStyle.Italic,
                             color = scheme.onSurfaceVariant,

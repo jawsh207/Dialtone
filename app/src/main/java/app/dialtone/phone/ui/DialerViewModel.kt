@@ -26,7 +26,9 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class DialerViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -91,6 +93,8 @@ class DialerViewModel(app: Application) : AndroidViewModel(app) {
             _voicemails.value = voicemailRepo.load()
             _transcription.value = voicemailRepo.transcriptionState()
             loadVvmState()
+            // Dialtone is on screen now, so a recognizer that refused in the background can run.
+            withContext(Dispatchers.IO) { voicemailRepo.retryTranscription() }
         }
     }
 

@@ -53,12 +53,18 @@ data class VvmAccount(
     val carrierAppInstalled: Boolean,
 )
 
-/** On-device transcription state for the voicemail UI. */
+/** Voicemail transcription (via the system speech recognizer) state for the voicemail UI. */
 data class TranscriptionUi(
-    /** This build/phone can transcribe (64-bit ARM with the bundled model). */
+    /** Android 13+, so recordings can be handed to a recognizer. */
+    val supported: Boolean = false,
+    /** A speech recognizer is installed. */
     val available: Boolean = false,
+    /** Name of the recognizer that will be used, when known. */
+    val recognizerName: String? = null,
+    /** The recognizer is Distillery, which is known to accept recordings. */
+    val isDistillery: Boolean = false,
     val enabled: Boolean = false,
-    /** Voicemails whose transcript Dialtone wrote on this phone. */
+    /** Voicemails whose transcript Dialtone wrote (via the recognizer). */
     val onDevice: Set<Long> = emptySet(),
     /** Voicemails already processed (with or without a result). */
     val attempted: Set<Long> = emptySet(),

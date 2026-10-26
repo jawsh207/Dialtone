@@ -7,25 +7,17 @@ import android.provider.VoicemailContract.Voicemails
 import android.util.Log
 import app.dialtone.phone.data.VoicemailDuplicates
 
-/** Finds voicemails that have audio but no transcript, and transcribes them on the phone. */
+/** Finds voicemails that have audio but no transcript, and transcribes them with the system recognizer. */
 class VoicemailTranscriber(private val context: Context) {
 
     /** Processes pending messages, newest first; [shouldStop] lets the job yield early. */
     fun processPending(shouldStop: () -> Boolean) {
         if (!Transcription.isEnabled(context)) return
-        val pending = pendingIds()
-        if (pending.isEmpty()) return
-
-        val model = ModelStore.ensureExtracted(context) ?: run {
-            Log.w(TAG, "model not available")
-            return
-        }
-        val engine = MoonshineEngine.open(model.path) ?: return
-        engine.use {
-            for (id in pending) {
-                if (shouldStop() || !Transcription.isEnabled(context)) return
-                transcribeOne(it, id)
-            }
+        for (id in pendingIds()) {
+            if (shouldStop() || !Transcription.isEnabled(context)) return
+            // A temporary failure (busy, model downloading, blocked in background) affects the
+            // rest too: stop, and try again on the next new voicemail or when Dialtone opens.
+            if (!transcribeOne(id)) return
         }
     }
 
@@ -59,21 +51,23 @@ class VoicemailTranscriber(private val context: Context) {
         return ids.filterNot { it in tried || it in hidden }.take(MAX_PER_RUN)
     }
 
-    private fun transcribeOne(engine: MoonshineEngine, id: Long) {
+    /** Returns false when the recognizer asked to retry later. */
+    private fun transcribeOne(id: Long): Boolean {
         val uri = ContentUris.withAppendedId(Voicemails.CONTENT_URI, id)
         val started = System.currentTimeMillis()
         val pcm = AudioDecoder.decodeTo16k(context, uri)?.let(AudioDecoder::normalize)
         if (pcm == null) {
             Transcription.markAttempted(context, id, transcribed = false)
-            return
+            return true
         }
-        val text = Chunker.split(pcm, engine.maxAudioMs)
-            .mapNotNull { range -> engine.transcribe(pcm.copyOfRange(range.first, range.last + 1)) }
-            .filter { it.isNotBlank() }
-            .joinToString(" ")
-            .replace(Regex("\\s+"), " ")
-            .trim()
-
+        val outcome = SystemRecognizer.transcribe(context, pcm)
+        Log.i(TAG, "voicemail $id: ${pcm.size / AudioDecoder.TARGET_RATE}s audio -> " +
+            "${outcome::class.simpleName} in ${System.currentTimeMillis() - started} ms")
+        val text = when (outcome) {
+            is SystemRecognizer.Outcome.RetryLater -> return false
+            is SystemRecognizer.Outcome.Text -> outcome.text.replace(Regex("\\s+"), " ").trim()
+            else -> ""
+        }
         var written = false
         if (text.isNotEmpty()) {
             written = runCatching {
@@ -87,8 +81,7 @@ class VoicemailTranscriber(private val context: Context) {
             }.onFailure { Log.w(TAG, "write failed: $it") }.getOrDefault(false)
         }
         Transcription.markAttempted(context, id, transcribed = written)
-        Log.i(TAG, "voicemail $id: ${pcm.size / AudioDecoder.TARGET_RATE}s audio, " +
-            "${text.length} chars in ${System.currentTimeMillis() - started} ms")
+        return true
     }
 
     companion object {
