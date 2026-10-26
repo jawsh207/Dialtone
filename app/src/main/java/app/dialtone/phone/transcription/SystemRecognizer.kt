@@ -18,6 +18,7 @@ import android.util.Log
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
@@ -86,49 +87,91 @@ object SystemRecognizer {
         val file = File(context.noBackupFilesDir, "transcribe-${System.nanoTime()}.pcm")
         try {
             writePcm16(pcm, file)
-            val pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-            return pfd.use { run(context, it, audioSeconds = pcm.size / AudioDecoder.TARGET_RATE) }
+            val seconds = pcm.size / AudioDecoder.TARGET_RATE
+            val language = Locale.getDefault().toLanguageTag()
+            // Ask in the phone's language. An engine that doesn't offer it (e.g. an English-only
+            // one on a phone set to another language) gets one more try in its own default.
+            val first = attempt(context, file, seconds, language)
+            if (first is Outcome.Failed && first.error == SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED) {
+                return attempt(context, file, seconds, language = null)
+            }
+            return first
         } finally {
             file.delete()
         }
     }
 
-    private fun run(context: Context, audio: ParcelFileDescriptor, audioSeconds: Int): Outcome {
+    private fun attempt(context: Context, file: File, seconds: Int, language: String?): Outcome =
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use {
+            run(context, it, seconds, language)
+        }
+
+    private fun run(context: Context, audio: ParcelFileDescriptor, audioSeconds: Int, language: String?): Outcome {
+        val audioMs = audioSeconds * 1000L // whole seconds: never longer than the audio itself
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            if (language != null) putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
             putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE, audio)
             putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_ENCODING, AudioFormat.ENCODING_PCM_16BIT)
             putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_SAMPLING_RATE, AudioDecoder.TARGET_RATE)
             putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_CHANNEL_COUNT, 1)
+            // Transcribe the whole recording, not just up to the first pause:
+            //  - a segmented session that ends when the audio ends (results arrive per segment);
+            //  - for engines that ignore that, don't stop before the audio's length, and treat
+            //    only a very long silence as the end.
+            putExtra(RecognizerIntent.EXTRA_SEGMENTED_SESSION, RecognizerIntent.EXTRA_AUDIO_SOURCE)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, audioMs)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 10_000L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 10_000L)
         }
         val done = CountDownLatch(1)
         var outcome: Outcome = Outcome.RetryLater(SpeechRecognizer.ERROR_CLIENT)
+        val segments = mutableListOf<String>()
         val main = Handler(Looper.getMainLooper())
         var recognizer: SpeechRecognizer? = null
+
+        fun finish(result: Outcome) {
+            if (done.count == 0L) return // first answer wins
+            outcome = result
+            done.countDown()
+        }
+
+        fun firstText(bundle: Bundle?): String? = bundle
+            ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+            ?.firstOrNull()
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
 
         main.post {
             val r = runCatching { SpeechRecognizer.createSpeechRecognizer(context) }.getOrNull()
             if (r == null) {
-                outcome = Outcome.Failed(SpeechRecognizer.ERROR_CLIENT)
-                done.countDown()
+                finish(Outcome.Failed(SpeechRecognizer.ERROR_CLIENT))
                 return@post
             }
             recognizer = r
             r.setRecognitionListener(object : RecognitionListener {
                 override fun onResults(results: Bundle?) {
-                    val text = results
-                        ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                        ?.firstOrNull()
-                        ?.trim()
-                    outcome = if (text.isNullOrEmpty()) Outcome.NoSpeech else Outcome.Text(text)
-                    done.countDown()
+                    // Engines that ignored the segmented request answer here, once.
+                    val text = (segments + listOfNotNull(firstText(results))).joinToString(" ")
+                    finish(if (text.isBlank()) Outcome.NoSpeech else Outcome.Text(text))
+                }
+
+                override fun onSegmentResults(segmentResults: Bundle) {
+                    firstText(segmentResults)?.let(segments::add)
+                }
+
+                override fun onEndOfSegmentedSession() {
+                    val text = segments.joinToString(" ")
+                    finish(if (text.isBlank()) Outcome.NoSpeech else Outcome.Text(text))
                 }
 
                 override fun onError(error: Int) {
-                    outcome = classify(error)
-                    done.countDown()
+                    // Keep what was already transcribed if a segmented session breaks off late.
+                    val text = segments.joinToString(" ")
+                    finish(if (text.isNotBlank() && classify(error) !is Outcome.RetryLater) Outcome.Text(text) else classify(error))
                 }
 
                 override fun onReadyForSpeech(params: Bundle?) {}
@@ -141,8 +184,7 @@ object SystemRecognizer {
             })
             runCatching { r.startListening(intent) }.onFailure {
                 Log.w(TAG, "startListening failed: $it")
-                outcome = Outcome.Failed(SpeechRecognizer.ERROR_CLIENT)
-                done.countDown()
+                finish(Outcome.Failed(SpeechRecognizer.ERROR_CLIENT))
             }
         }
 
@@ -150,7 +192,12 @@ object SystemRecognizer {
         val timeoutSec = (60 + audioSeconds * 4L).coerceAtMost(15 * 60L)
         if (!done.await(timeoutSec, TimeUnit.SECONDS)) {
             Log.w(TAG, "recognizer timed out after ${timeoutSec}s")
-            outcome = Outcome.RetryLater(SpeechRecognizer.ERROR_SPEECH_TIMEOUT)
+            val partial = CountDownLatch(1)
+            var text = ""
+            main.post { text = segments.joinToString(" "); partial.countDown() }
+            partial.await(2, TimeUnit.SECONDS)
+            // An engine that never ends the session but sent segments still gave us the text.
+            outcome = if (text.isNotBlank()) Outcome.Text(text) else Outcome.RetryLater(SpeechRecognizer.ERROR_SPEECH_TIMEOUT)
         }
         val cleanup = CountDownLatch(1)
         main.post {

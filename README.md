@@ -102,6 +102,12 @@ Dialtone bundles no speech engine.
 - Works with recognizers that accept recordings (`RecognizerIntent.EXTRA_AUDIO_SOURCE`,
   Android 13+). [Distillery](https://github.com/jawsh207/Distillery) does, on the phone. The
   audio is passed as 16 kHz mono 16-bit PCM, the format the API documents.
+- Dialtone asks for the whole recording to be transcribed (a segmented session that ends with
+  the audio, plus minimum-length and long-silence hints for engines that ignore that), in the
+  phone's language (retrying in the engine's default if it doesn't offer that language).
+- Dialtone deliberately has no microphone permission. Engines must handle the caller's
+  permission themselves (Distillery does); others are refused. The upside: an engine that
+  ignores the recording and opens the microphone can't record the room into a transcript.
 - A recognizer that only listens to the microphone returns an error, and the message is left
   without a transcript. An online recognizer may send the audio off the phone; the settings
   card says which recognizer is in use.
