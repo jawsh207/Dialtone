@@ -147,6 +147,10 @@ fun DialerApp(
     }
     BackHandler(enabled = keypadOpen) { keypadOpen = false }
     BackHandler(enabled = !keypadOpen && query != null) { query = null }
+    // Back from Contacts or Voicemail goes to Home; from Home it leaves the app as usual.
+    BackHandler(enabled = !keypadOpen && query == null && tab != Tab.Home) {
+        scope.launch { pager.animateScrollToPage(Tab.Home.ordinal) }
+    }
 
     val call: (String) -> Unit = { number ->
         Dialer.call(context, number)
