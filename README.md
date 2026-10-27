@@ -29,10 +29,13 @@ Every push to `main` produces an optimized release APK (R8-shrunk, non-debuggabl
 Dialtone's release key; download it from the run's **Artifacts** under **Actions → Build**.
 Each build has a higher version code, so it installs as an update over the last one.
 
-**Releases:** add `release-notes/vX.Y.Z.md` (a short summary) and push it to `main`. That run
-builds the signed APK, tags the commit `vX.Y.Z`, and publishes a GitHub Release with the APK,
-the summary, every change since the previous release and a full-changelog link. Creating a
-release on GitHub with a new `vX.Y.Z` tag works too.
+**Releases:** open **Actions → Build release → Run workflow**, pick the version bump (minor by
+default, or patch/major, or type an exact version) and optionally a one-line summary. It builds
+the signed APK, tags the commit `vX.Y.Z`, and publishes a GitHub Release with the APK and a change
+log of every commit since the previous release, plus a full-changelog link. For hand-written
+notes, push `release-notes/vX.Y.Z.md` to `main` instead (or before running it); creating a
+release on GitHub with a new `vX.Y.Z` tag works too. Version codes are minutes since Nov 2023,
+so every build, test or release, installs as an update over the previous one.
 
 1. Install the APK on a **real phone with a SIM** (Android 10+). Emulators can't place real calls.
 2. Open Dialtone, tap **Set as default** and pick it. Grant the permissions it asks for.

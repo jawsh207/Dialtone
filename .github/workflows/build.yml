@@ -1,9 +1,12 @@
 name: Build
 
 # Every push to main builds a signed, optimized APK (an updatable test build).
-# Releases: push a new release-notes/vX.Y.Z.md to main and this run also creates the
-# vX.Y.Z tag and publishes the GitHub Release with the APK. Creating a release on
-# GitHub (which pushes the tag) works too.
+# Releases, any of:
+#  - Actions › "Build release" › Run workflow (release.yml calls this with the new tag);
+#  - push a new release-notes/vX.Y.Z.md to main;
+#  - create a release on GitHub (which pushes the tag).
+# The run builds the APK, creates the vX.Y.Z tag and publishes the GitHub Release with a
+# change log of every commit since the previous release.
 
 on:
   push:
@@ -11,6 +14,17 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      release_tag:
+        description: Version to release, e.g. v0.5.0 (must not exist yet)
+        type: string
+        required: true
+      release_summary:
+        description: Optional one-line summary for the top of the release notes
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: write # create tags and releases
@@ -25,8 +39,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      # versionCode rises with every run, so each APK installs as an update.
-      DIALTONE_VERSION_CODE: ${{ github.run_number }}
       HAS_SIGNING: ${{ secrets.DIALTONE_KEYSTORE_BASE64 != '' }}
 
     steps:
@@ -38,9 +50,16 @@ jobs:
         shell: bash
         env:
           BEFORE: ${{ github.event.before }}
+          INPUT_TAG: ${{ inputs.release_tag }}
         run: |
           TAG=""; NEW=false
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          if [[ -n "$INPUT_TAG" ]]; then
+            TAG="$INPUT_TAG"         # "Build release" workflow
+            if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+              echo "::error title=Version exists::$TAG is already tagged"; exit 1
+            fi
+            NEW=true
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             TAG="$GITHUB_REF_NAME"   # release created on GitHub; tag already exists
           elif [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/main ]]; then
             if [[ -z "$BEFORE" || "$BEFORE" =~ ^0+$ ]] || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
@@ -57,14 +76,18 @@ jobs:
                   done | sort -V | tail -1)
             [[ -n "$TAG" ]] && NEW=true
           fi
+          LAST=$(git tag --list 'v*' --sort=-v:refname | head -1)
           {
             echo "RELEASE_TAG=$TAG"
             echo "RELEASE_NEW=$NEW"
             if [[ -n "$TAG" ]]; then
               echo "DIALTONE_VERSION_NAME=$TAG"
             else
-              echo "DIALTONE_VERSION_NAME=0.1.0-ci.$GITHUB_RUN_NUMBER"
+              echo "DIALTONE_VERSION_NAME=${LAST:-v0.1.0}-ci.$GITHUB_RUN_NUMBER"
             fi
+            # versionCode: minutes since Nov 2023. Rises with every build from either
+            # workflow (test builds and releases), so each APK installs as an update.
+            echo "DIALTONE_VERSION_CODE=$(( ($(date +%s) - 1700000000) / 60 ))"
           } >> "$GITHUB_ENV"
           echo "release tag: ${TAG:-none} (new: $NEW)"
 
@@ -148,23 +171,31 @@ jobs:
       - name: Write release notes
         if: env.RELEASE_TAG != ''
         shell: bash
+        env:
+          SUMMARY: ${{ inputs.release_summary }}
         run: |
           git fetch --force --tags origin >/dev/null 2>&1 || true
           TAG="$RELEASE_TAG"
           PREV=$(git describe --tags --abbrev=0 --match 'v*' "${TAG}^" 2>/dev/null || true)
           {
-            # Summary: release-notes/<tag>.md from the repo, else the annotated tag message.
+            # Summary: release-notes/<tag>.md, else the summary typed into "Build release",
+            # else a hand-written annotated tag message.
             if [ -f "release-notes/$TAG.md" ]; then
               cat "release-notes/$TAG.md"
               echo
-            elif [ "$(git cat-file -t "$TAG")" = "tag" ]; then
-              git tag -l --format='%(contents)' "$TAG" | sed '/^-----BEGIN PGP/,$d'
+            elif [ -n "${SUMMARY//[[:space:]]/}" ]; then
+              echo "**$SUMMARY**"
               echo
+            elif [ "$(git cat-file -t "$TAG")" = "tag" ]; then
+              MSG=$(git tag -l --format='%(contents)' "$TAG" | sed '/^-----BEGIN PGP/,$d')
+              if [ -n "$MSG" ] && [ "$MSG" != "Dialtone $TAG" ]; then echo "$MSG"; echo; fi
             fi
+            # Change log: every commit since the previous release (release bookkeeping left out).
             echo "## Changes"
             echo
             if [ -n "$PREV" ]; then RANGE="$PREV..$TAG"; else RANGE="$TAG"; fi
-            git log --no-merges --format='- %s' "$RANGE"
+            CHANGES=$(git log --no-merges --format='- %s' "$RANGE" | grep -v -E '^- Release v[0-9]' || true)
+            echo "${CHANGES:-- Maintenance release}"
             echo
             if [ -n "$PREV" ]; then
               echo "**Full changelog:** https://github.com/$GITHUB_REPOSITORY/compare/$PREV...$TAG"
