@@ -93,6 +93,9 @@ fun VoicemailScreen(
     transcription: TranscriptionUi,
     actions: VoicemailActions,
     contentPadding: PaddingValues,
+    showSettings: Boolean,
+    onShowSettings: () -> Unit,
+    onDismissSettings: () -> Unit,
 ) {
     val context = LocalContext.current
     val player = remember { VoicemailPlayer(context) }
@@ -104,7 +107,6 @@ fun VoicemailScreen(
         }
     }
     var expandedId by rememberSaveable { mutableStateOf<Long?>(null) }
-    var showSettings by rememberSaveable { mutableStateOf(false) }
 
     if (voicemails == null) {
         Box(Modifier.fillMaxSize().padding(contentPadding), contentAlignment = Alignment.Center) {
@@ -123,7 +125,7 @@ fun VoicemailScreen(
     ) {
         item(key = "header") {
             Row(
-                Modifier.fillMaxWidth().padding(start = 32.dp, end = 8.dp, top = 8.dp, bottom = 4.dp),
+                Modifier.fillMaxWidth().padding(start = 32.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 val unread = voicemails.count { !it.isRead }
@@ -137,17 +139,13 @@ fun VoicemailScreen(
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f),
                 )
-                TextButton(onClick = { Dialer.callVoicemail(context) }) { Text("Call voicemail") }
-                IconButton(onClick = { showSettings = true }) {
-                    Icon(Icons.Rounded.Settings, "Voicemail settings")
-                }
             }
         }
         statusBannerFor(accounts, health)?.let { banner ->
             item(key = "status") {
                 StatusBanner(
                     banner = banner,
-                    onAction = if (banner.retry) actions.onSyncNow else ({ showSettings = true }),
+                    onAction = if (banner.retry) actions.onSyncNow else onShowSettings,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
                 )
             }
@@ -159,13 +157,7 @@ fun VoicemailScreen(
                     "No voicemails",
                     "New messages download here automatically. You can always dial in to listen.",
                     Modifier.padding(top = 24.dp),
-                ) {
-                    Button(onClick = { Dialer.callVoicemail(context) }) {
-                        Icon(Icons.Rounded.Call, null, Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Call voicemail")
-                    }
-                }
+                )
             }
         }
         itemsIndexed(voicemails, key = { _, v -> v.id }) { i, vm ->
@@ -191,6 +183,19 @@ fun VoicemailScreen(
                 modifier = Modifier.padding(horizontal = 16.dp).animateItem(),
             )
         }
+        // Dial in to the carrier's voicemail: always at the end, with or without messages.
+        item(key = "call") {
+            Box(
+                Modifier.fillMaxWidth().padding(top = if (voicemails.isEmpty()) 0.dp else 20.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Button(onClick = { Dialer.callVoicemail(context) }) {
+                    Icon(Icons.Rounded.Call, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Call voicemail")
+                }
+            }
+        }
     }
 
     if (showSettings) {
@@ -199,7 +204,7 @@ fun VoicemailScreen(
             health = health,
             transcription = transcription,
             actions = actions,
-            onDismiss = { showSettings = false },
+            onDismiss = onDismissSettings,
         )
     }
 }

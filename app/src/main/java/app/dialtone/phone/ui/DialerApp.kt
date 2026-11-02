@@ -30,6 +30,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Voicemail
@@ -121,6 +122,7 @@ fun DialerApp(
     var keypadOpen by rememberSaveable { mutableStateOf(false) }
     var keypadText by rememberSaveable { mutableStateOf("") }
     var query by rememberSaveable { mutableStateOf<String?>(null) } // null = not searching
+    var voicemailSettingsOpen by rememberSaveable { mutableStateOf(false) }
 
     LifecycleResumeEffect(Unit) {
         vm.refresh()
@@ -184,6 +186,16 @@ fun DialerApp(
                     query = query,
                     onQueryChange = { query = it },
                     onActiveChange = { active -> query = if (active) "" else null },
+                    // Voicemail settings live in the search bar while on the Voicemail tab.
+                    trailing = if (tab == Tab.Voicemail) {
+                        {
+                            IconButton(onClick = { voicemailSettingsOpen = true }) {
+                                Icon(Icons.Rounded.Settings, "Voicemail settings")
+                            }
+                        }
+                    } else {
+                        null
+                    },
                 )
             },
             bottomBar = {
@@ -240,6 +252,9 @@ fun DialerApp(
                             transcription = transcription,
                             actions = voicemailActions,
                             contentPadding = padding,
+                            showSettings = voicemailSettingsOpen,
+                            onShowSettings = { voicemailSettingsOpen = true },
+                            onDismissSettings = { voicemailSettingsOpen = false },
                         )
                     }
                 }
@@ -268,6 +283,7 @@ private fun SearchBarPill(
     query: String?,
     onQueryChange: (String) -> Unit,
     onActiveChange: (Boolean) -> Unit,
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     val focus = remember { FocusRequester() }
@@ -283,12 +299,18 @@ private fun SearchBarPill(
             .fillMaxWidth()
             .height(56.dp),
     ) {
-        Row(Modifier.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxSize().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             if (query == null) {
                 Spacer(Modifier.width(8.dp))
                 Icon(Icons.Rounded.Search, null, tint = scheme.onSurfaceVariant)
                 Spacer(Modifier.width(12.dp))
-                Text("Search contacts", style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
+                Text(
+                    "Search contacts",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = scheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                trailing?.invoke()
             } else {
                 IconButton(onClick = { onActiveChange(false) }) {
                     Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Close search")

@@ -75,9 +75,6 @@ object SystemRecognizer {
         return Info(pkg, label)
     }
 
-    /** Opens the system screen where the user picks voice input (falls back to app settings). */
-    fun settingsIntent(): Intent = Intent(Settings.ACTION_VOICE_INPUT_SETTINGS)
-
     /**
      * Transcribes [pcm] (16 kHz mono float) with the system recognizer. Blocks the calling
      * (background) thread; the recognizer itself runs on the main thread as the API requires.

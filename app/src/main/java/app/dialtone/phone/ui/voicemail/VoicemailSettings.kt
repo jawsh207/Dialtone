@@ -48,7 +48,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dialtone.phone.data.TranscriptionUi
-import app.dialtone.phone.transcription.SystemRecognizer
 import android.provider.Settings
 import android.content.Intent
 import app.dialtone.phone.data.VvmAccount
@@ -61,7 +60,8 @@ class StatusBannerModel(
     val icon: ImageVector,
     val title: String,
     val body: String,
-    val actionLabel: String,
+    /** Button label; null for no button. */
+    val actionLabel: String?,
     /** true → action retries sync; false → action opens settings. */
     val retry: Boolean,
     val isError: Boolean,
@@ -77,7 +77,7 @@ fun statusBannerFor(accounts: List<VvmAccount>, health: VvmHealth): StatusBanner
             "Visual voicemail isn't available",
             "Your carrier isn't in Dialtone's list yet. New voicemails still show up as a " +
                 "notification, and you can dial in to listen.",
-            "Details", retry = false, isError = false,
+            actionLabel = null, retry = false, isError = false,
         )
     }
     if (ours.isEmpty()) return null
@@ -121,8 +121,13 @@ fun StatusBanner(banner: StatusBannerModel, onAction: () -> Unit, modifier: Modi
             }
             Spacer(Modifier.padding(top = 6.dp))
             Text(banner.body, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(end = 8.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onAction) { Text(banner.actionLabel) }
+            val label = banner.actionLabel
+            if (label != null) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onAction) { Text(label) }
+                }
+            } else {
+                Spacer(Modifier.padding(top = 8.dp))
             }
         }
     }
@@ -274,16 +279,13 @@ private fun TranscriptionCard(transcription: TranscriptionUi, onToggle: (Boolean
     val context = LocalContext.current
     val scheme = MaterialTheme.colorScheme
     val name = transcription.recognizerName
-    val description = when {
-        !transcription.available ->
-            "No speech recognizer is set up. Install one that can transcribe recordings, such as " +
-                "Distillery, and choose it as your phone's voice input."
-        transcription.isDistillery ->
-            "Turns voicemails without a carrier transcript into text with Distillery, on this phone."
-        else ->
-            "Turns voicemails without a carrier transcript into text with " +
-                (name ?: "your phone's speech recognizer") + ". It may not accept recordings, " +
-                "and it may send audio off the phone."
+    val description = if (!transcription.available) {
+        "No speech-to-text app is set up. Install one that can transcribe recordings and choose " +
+            "it as your phone's voice input."
+    } else {
+        "Tries to turn voicemails without a carrier transcript into text using your phone's " +
+            "speech-to-text app" + (name?.let { " ($it)" } ?: "") + ". Whether it works depends " +
+            "on that app: not every app can transcribe recordings, and some send audio off the phone."
     }
     Surface(
         shape = RoundedCornerShape(24.dp),
@@ -305,8 +307,10 @@ private fun TranscriptionCard(transcription: TranscriptionUi, onToggle: (Boolean
             }
             TextButton(
                 onClick = {
+                    // Language & region, where the speech/voice input choice lives; the main
+                    // Settings screen if this build has no language screen.
                     val opened = runCatching {
-                        context.startActivity(SystemRecognizer.settingsIntent().addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        context.startActivity(Intent(Settings.ACTION_LOCALE_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                     }.isSuccess
                     if (!opened) {
                         runCatching {
