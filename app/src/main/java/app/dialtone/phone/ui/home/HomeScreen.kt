@@ -2,6 +2,10 @@ package app.dialtone.phone.ui.home
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import android.content.Context
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,12 +31,14 @@ import androidx.compose.material.icons.automirrored.rounded.CallReceived
 import androidx.compose.material.icons.automirrored.rounded.Message
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Call
-import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.Voicemail
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FilledTonalIconButton
@@ -93,8 +99,13 @@ fun HomeScreen(
     recents: List<RecentCall>?,
     contactIndex: Map<String, Contact>,
     onCall: (String) -> Unit,
+    onOpenContacts: () -> Unit,
     contentPadding: PaddingValues,
 ) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("home", Context.MODE_PRIVATE) }
+    // Remembered across launches: hidden favorites stay hidden.
+    var favoritesShown by remember { mutableStateOf(!prefs.getBoolean("favorites_collapsed", false)) }
     var expandedId by rememberSaveable { mutableStateOf<Long?>(null) }
     var filter by rememberSaveable { mutableStateOf(CallFilter.All) }
 
@@ -132,18 +143,51 @@ fun HomeScreen(
                             expandedId = null
                         },
                         label = { Text(f.label) },
-                        leadingIcon = if (filter == f) {
-                            { Icon(Icons.Rounded.Check, null, Modifier.size(FilterChipDefaults.IconSize)) }
-                        } else {
-                            null
-                        },
                     )
                 }
             }
         }
 
-        if (favorites.isNotEmpty()) {
-            item(key = "fav-header") { SectionHeader("Favorites") }
+        // "Favorites ⌄" (show/hide) on the left, Contacts on the right.
+        item(key = "fav-header") {
+            Row(
+                Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (favorites.isNotEmpty()) {
+                    val rotation by animateFloatAsState(if (favoritesShown) 0f else -90f, label = "chevron")
+                    Row(
+                        Modifier
+                            .clip(CircleShape)
+                            .clickable {
+                                favoritesShown = !favoritesShown
+                                prefs.edit().putBoolean("favorites_collapsed", !favoritesShown).apply()
+                            }
+                            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("Favorites", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                        Icon(
+                            Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = if (favoritesShown) "Hide favorites" else "Show favorites",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp).rotate(rotation),
+                        )
+                    }
+                }
+                Spacer(Modifier.weight(1f))
+                FilledTonalButton(
+                    onClick = onOpenContacts,
+                    contentPadding = PaddingValues(start = 12.dp, end = 16.dp),
+                    modifier = Modifier.height(36.dp),
+                ) {
+                    Icon(Icons.Rounded.Person, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Contacts")
+                }
+            }
+        }
+        if (favorites.isNotEmpty() && favoritesShown) {
             item(key = "fav-row") {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 20.dp),

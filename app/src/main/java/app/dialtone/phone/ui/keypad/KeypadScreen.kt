@@ -92,10 +92,9 @@ private fun matchContacts(contacts: List<Contact>, query: String): List<Pair<Con
 }
 
 /**
- * The Keypad tab: the dial pad slides up from the bottom when the tab opens, over a list of
- * suggested contacts (people you call most, then favorites). While typing, the list shows
- * contacts matching the digits instead. Scrolling the list, or the arrow on the pad, tucks
- * the pad away; the dial pad button brings it back.
+ * The Keypad tab: the dial pad slides up from the bottom when the tab opens and stays open,
+ * over a scrollable list of suggested contacts (people you call most, then favorites).
+ * While typing, the list shows contacts matching the digits instead.
  *
  * @param active the tab is on screen (not mid-swipe elsewhere, not searching).
  */
@@ -112,21 +111,13 @@ fun KeypadTab(
 ) {
     val scheme = MaterialTheme.colorScheme
     val density = LocalDensity.current
-    var padShown by rememberSaveable { mutableStateOf(true) }
     var padHeightPx by remember { mutableIntStateOf(0) }
     val listState = rememberLazyListState()
-
-    // Arriving on the tab always brings the pad up.
-    LaunchedEffect(active) { if (active) padShown = true }
-    // Scrolling the suggestions tucks the pad away (only when nothing has been typed).
-    LaunchedEffect(listState.isScrollInProgress) {
-        if (listState.isScrollInProgress && padShown && number.isEmpty()) padShown = false
-    }
 
     val matches = remember(number, contacts) { matchContacts(contacts, number) }
     val typing = number.filter { it.isDigit() }.length >= 2
     val rows = if (typing) matches else suggested
-    val padVisible = active && padShown
+    val padVisible = active
     val padSpace = if (padVisible) with(density) { padHeightPx.toDp() } else 0.dp
 
     Box(Modifier.fillMaxSize()) {
@@ -187,25 +178,8 @@ fun KeypadTab(
                 onNumberChange = onNumberChange,
                 lastDialed = lastDialed,
                 onCall = onCall,
-                onHide = { padShown = false },
                 modifier = Modifier.onSizeChanged { padHeightPx = it.height },
             )
-        }
-
-        // Pad tucked away: the dial pad button brings it back.
-        AnimatedVisibility(
-            visible = active && !padShown,
-            enter = scaleIn() + fadeIn(),
-            exit = scaleOut() + fadeOut(),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = contentPadding.calculateBottomPadding() + 16.dp),
-        ) {
-            FloatingActionButton(
-                onClick = { padShown = true },
-                containerColor = scheme.primaryContainer,
-                contentColor = scheme.onPrimaryContainer,
-            ) { Icon(Icons.Rounded.Dialpad, contentDescription = "Show keypad") }
         }
     }
 }
@@ -216,7 +190,6 @@ private fun DialPanel(
     onNumberChange: (String) -> Unit,
     lastDialed: String?,
     onCall: (String) -> Unit,
-    onHide: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -230,18 +203,13 @@ private fun DialPanel(
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 12.dp)) {
-            Box(Modifier.fillMaxWidth()) {
-                IconButton(onClick = onHide, modifier = Modifier.align(Alignment.CenterStart)) {
-                    Icon(Icons.Rounded.KeyboardArrowDown, "Hide keypad", tint = scheme.onSurfaceVariant)
-                }
-                BasicText(
-                    text = formatNumber(number),
-                    style = MaterialTheme.typography.displaySmall.copy(color = scheme.onSurface, textAlign = TextAlign.Center),
-                    maxLines = 1,
-                    autoSize = TextAutoSize.StepBased(minFontSize = 20.sp, maxFontSize = 36.sp),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 48.dp, vertical = 8.dp).height(48.dp),
-                )
-            }
+            BasicText(
+                text = formatNumber(number),
+                style = MaterialTheme.typography.displaySmall.copy(color = scheme.onSurface, textAlign = TextAlign.Center),
+                maxLines = 1,
+                autoSize = TextAutoSize.StepBased(minFontSize = 20.sp, maxFontSize = 36.sp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp).height(48.dp),
+            )
 
             DialPad(
                 keyHeight = 60.dp,

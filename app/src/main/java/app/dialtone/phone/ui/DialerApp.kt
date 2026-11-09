@@ -79,6 +79,7 @@ import app.dialtone.phone.ui.components.EmptyState
 import app.dialtone.phone.ui.components.SectionHeader
 import app.dialtone.phone.ui.contacts.contactItems
 import app.dialtone.phone.ui.home.HomeScreen
+import app.dialtone.phone.ui.contacts.ContactsScreen
 import app.dialtone.phone.ui.keypad.KeypadTab
 import app.dialtone.phone.ui.voicemail.VoicemailActions
 import app.dialtone.phone.ui.voicemail.VoicemailScreen
@@ -124,6 +125,9 @@ fun DialerApp(
     var keypadText by rememberSaveable { mutableStateOf("") }
     var query by rememberSaveable { mutableStateOf<String?>(null) } // null = not searching
     var voicemailSettingsOpen by rememberSaveable { mutableStateOf(false) }
+    // The contacts list, opened from Home's Contacts button in Home's own space.
+    var contactsOpen by rememberSaveable { mutableStateOf(false) }
+    val showingContacts = contactsOpen && tab == Tab.Home
 
     LifecycleResumeEffect(Unit) {
         vm.refresh()
@@ -149,8 +153,9 @@ fun DialerApp(
         if (tab == Tab.Voicemail) VoicemailNotifier.cancelVisual(context)
     }
     BackHandler(enabled = query != null) { query = null }
+    BackHandler(enabled = query == null && showingContacts) { contactsOpen = false }
     // Back from Keypad or Voicemail goes to Home; from Home it leaves the app as usual.
-    BackHandler(enabled = query == null && tab != Tab.Home) {
+    BackHandler(enabled = query == null && tab != Tab.Home && !showingContacts) {
         scope.launch { pager.animateScrollToPage(Tab.Home.ordinal) }
     }
 
@@ -205,6 +210,8 @@ fun DialerApp(
                     query = query,
                     onQueryChange = { query = it },
                     onActiveChange = { active -> query = if (active) "" else null },
+                    // On the contacts list, a back arrow returns to Home.
+                    onBack = if (showingContacts) ({ contactsOpen = false }) else null,
                     // Voicemail settings live in the search bar while on the Voicemail tab.
                     trailing = if (tab == Tab.Voicemail) {
                         {
@@ -225,6 +232,7 @@ fun DialerApp(
                             selected = selected,
                             onClick = {
                                 query = null
+                                if (t == Tab.Home) contactsOpen = false
                                 scope.launch { pager.animateScrollToPage(t.ordinal) }
                             },
                             icon = {
@@ -251,7 +259,17 @@ fun DialerApp(
                     key = { Tab.entries[it] },
                 ) { page ->
                     when (Tab.entries[page]) {
-                        Tab.Home -> HomeScreen(favorites, recents, contactIndex, call, padding)
+                        Tab.Home -> AnimatedContent(
+                            targetState = contactsOpen,
+                            transitionSpec = { fadeIn(effects) togetherWith fadeOut(effects) },
+                            label = "home-contacts",
+                        ) { open ->
+                            if (open) {
+                                ContactsScreen(contacts, call, padding)
+                            } else {
+                                HomeScreen(favorites, recents, contactIndex, call, { contactsOpen = true }, padding)
+                            }
+                        }
                         Tab.Keypad -> KeypadTab(
                             active = query == null && pager.currentPage == Tab.Keypad.ordinal,
                             number = keypadText,
@@ -287,6 +305,7 @@ private fun SearchBarPill(
     onQueryChange: (String) -> Unit,
     onActiveChange: (Boolean) -> Unit,
     trailing: (@Composable () -> Unit)? = null,
+    onBack: (() -> Unit)? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     val focus = remember { FocusRequester() }
@@ -304,9 +323,14 @@ private fun SearchBarPill(
     ) {
         Row(Modifier.fillMaxSize().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             if (query == null) {
-                Spacer(Modifier.width(8.dp))
-                Icon(Icons.Rounded.Search, null, tint = scheme.onSurfaceVariant)
-                Spacer(Modifier.width(12.dp))
+                if (onBack != null) {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back to Home") }
+                    Spacer(Modifier.width(4.dp))
+                } else {
+                    Spacer(Modifier.width(8.dp))
+                    Icon(Icons.Rounded.Search, null, tint = scheme.onSurfaceVariant)
+                    Spacer(Modifier.width(12.dp))
+                }
                 Text(
                     "Search contacts",
                     style = MaterialTheme.typography.bodyLarge,
