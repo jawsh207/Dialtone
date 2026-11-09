@@ -77,19 +77,21 @@ import app.dialtone.phone.telecom.Dialer
 import app.dialtone.phone.ui.components.ContactsMatchBottomBar
 import app.dialtone.phone.ui.components.EmptyState
 import app.dialtone.phone.ui.components.SectionHeader
-import app.dialtone.phone.ui.contacts.ContactsScreen
 import app.dialtone.phone.ui.contacts.contactItems
 import app.dialtone.phone.ui.home.HomeScreen
-import app.dialtone.phone.ui.keypad.KeypadScreen
+import app.dialtone.phone.ui.keypad.KeypadTab
 import app.dialtone.phone.ui.voicemail.VoicemailActions
 import app.dialtone.phone.ui.voicemail.VoicemailScreen
 import app.dialtone.phone.voicemail.VoicemailNotifier
 import app.dialtone.phone.util.formatNumber
+import app.dialtone.phone.util.numberKey
+import app.dialtone.phone.data.PhoneNumber
 
 // Matches the Contacts app: outlined icons, filled while the tab is selected.
 private enum class Tab(val label: String, val icon: ImageVector, val selectedIcon: ImageVector) {
     Home("Home", Icons.Outlined.Home, Icons.Filled.Home),
-    Contacts("Contacts", Icons.Outlined.Person, Icons.Filled.Person),
+    // The FAB's dial pad glyph; it's the same in every icon style.
+    Keypad("Keypad", Icons.Rounded.Dialpad, Icons.Rounded.Dialpad),
     Voicemail("Voicemail", Icons.Outlined.Voicemail, Icons.Filled.Voicemail),
 }
 
@@ -119,7 +121,6 @@ fun DialerApp(
     val pager = rememberPagerState(initialPage = Tab.Home.ordinal) { Tab.entries.size }
     val tab = Tab.entries[pager.targetPage]
     val scope = rememberCoroutineScope()
-    var keypadOpen by rememberSaveable { mutableStateOf(false) }
     var keypadText by rememberSaveable { mutableStateOf("") }
     var query by rememberSaveable { mutableStateOf<String?>(null) } // null = not searching
     var voicemailSettingsOpen by rememberSaveable { mutableStateOf(false) }
@@ -131,14 +132,14 @@ fun DialerApp(
     LaunchedEffect(pendingNumber) {
         pendingNumber?.let {
             keypadText = it
-            keypadOpen = true
+            query = null
+            pager.scrollToPage(Tab.Keypad.ordinal)
             onPendingConsumed()
         }
     }
     LaunchedEffect(openVoicemail) {
         if (openVoicemail) {
             pager.scrollToPage(Tab.Voicemail.ordinal)
-            keypadOpen = false
             query = null
             onOpenVoicemailConsumed()
         }
@@ -147,16 +148,14 @@ fun DialerApp(
     LaunchedEffect(tab) {
         if (tab == Tab.Voicemail) VoicemailNotifier.cancelVisual(context)
     }
-    BackHandler(enabled = keypadOpen) { keypadOpen = false }
-    BackHandler(enabled = !keypadOpen && query != null) { query = null }
-    // Back from Contacts or Voicemail goes to Home; from Home it leaves the app as usual.
-    BackHandler(enabled = !keypadOpen && query == null && tab != Tab.Home) {
+    BackHandler(enabled = query != null) { query = null }
+    // Back from Keypad or Voicemail goes to Home; from Home it leaves the app as usual.
+    BackHandler(enabled = query == null && tab != Tab.Home) {
         scope.launch { pager.animateScrollToPage(Tab.Home.ordinal) }
     }
 
     val call: (String) -> Unit = { number ->
         Dialer.call(context, number)
-        keypadOpen = false
         keypadText = ""
     }
     val voicemailActions = remember(vm) {
@@ -173,6 +172,26 @@ fun DialerApp(
         )
     }
     val favorites = remember(contacts) { contacts.filter { it.starred } }
+    // Keypad suggestions: contacts you call most (recent calls weigh more), then favorites.
+    val suggested = remember(recents, contactIndex, favorites) {
+        val now = System.currentTimeMillis()
+        val scores = LinkedHashMap<Long, Pair<Double, PhoneNumber>>()
+        val byId = HashMap<Long, Contact>()
+        recents.orEmpty().forEach { call ->
+            val contact = contactIndex[numberKey(call.number)] ?: return@forEach
+            val days = ((now - call.date) / 86_400_000.0).coerceAtLeast(0.0)
+            val weight = 1.0 / (1.0 + days / 7.0)
+            val pn = contact.numbers.firstOrNull { numberKey(it.number) == numberKey(call.number) }
+                ?: PhoneNumber(call.number, "Mobile")
+            val old = scores[contact.id]
+            scores[contact.id] = ((old?.first ?: 0.0) + weight) to (old?.second ?: pn)
+            byId[contact.id] = contact
+        }
+        val frequent = scores.entries.sortedByDescending { it.value.first }
+            .map { byId.getValue(it.key) to it.value.second }
+        val extra = favorites.filter { it.id !in scores }.mapNotNull { c -> c.numbers.firstOrNull()?.let { c to it } }
+        (frequent + extra).take(12)
+    }
     val unread = voicemails?.count { !it.isRead } ?: 0
     val lastDialed = recents?.firstOrNull { it.type == CallType.Outgoing }?.number
 
@@ -221,16 +240,6 @@ fun DialerApp(
                     }
                 }
             },
-            floatingActionButton = {
-                // Standard 56dp FAB with default shape and elevation, as in Contacts.
-                FloatingActionButton(
-                    onClick = { keypadOpen = true },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ) {
-                    Icon(Icons.Rounded.Dialpad, contentDescription = "Open keypad")
-                }
-            },
         ) { padding ->
             val q = query
             if (q != null) {
@@ -243,7 +252,16 @@ fun DialerApp(
                 ) { page ->
                     when (Tab.entries[page]) {
                         Tab.Home -> HomeScreen(favorites, recents, contactIndex, call, padding)
-                        Tab.Contacts -> ContactsScreen(contacts, call, padding)
+                        Tab.Keypad -> KeypadTab(
+                            active = query == null && pager.currentPage == Tab.Keypad.ordinal,
+                            number = keypadText,
+                            onNumberChange = { keypadText = it },
+                            contacts = contacts,
+                            suggested = suggested,
+                            lastDialed = lastDialed,
+                            onCall = call,
+                            contentPadding = padding,
+                        )
                         Tab.Voicemail -> VoicemailScreen(
                             voicemails = voicemails,
                             contactIndex = contactIndex,
@@ -259,21 +277,6 @@ fun DialerApp(
                     }
                 }
             }
-        }
-
-        AnimatedVisibility(
-            visible = keypadOpen,
-            enter = slideInVertically(spatial) { it } + fadeIn(effects),
-            exit = slideOutVertically(spatial) { it } + fadeOut(effects),
-        ) {
-            KeypadScreen(
-                number = keypadText,
-                onNumberChange = { keypadText = it },
-                contacts = contacts,
-                lastDialed = lastDialed,
-                onCall = call,
-                onClose = { keypadOpen = false },
-            )
         }
     }
 }

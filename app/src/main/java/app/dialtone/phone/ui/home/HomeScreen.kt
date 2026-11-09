@@ -27,11 +27,14 @@ import androidx.compose.material.icons.automirrored.rounded.CallReceived
 import androidx.compose.material.icons.automirrored.rounded.Message
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.Voicemail
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
@@ -67,6 +70,23 @@ import app.dialtone.phone.util.formatNumber
 import app.dialtone.phone.util.formatShortDate
 import app.dialtone.phone.util.numberKey
 
+/** Call log filters shown above Favorites. */
+private enum class CallFilter(val label: String, val empty: String) {
+    All("All", "No recent calls"),
+    Missed("Missed", "No missed calls"),
+    Dialed("Dialed", "No dialed calls"),
+    Contacts("Contacts", "No calls with your contacts"),
+    Unknown("Unknown", "No calls from unsaved numbers"),
+}
+
+private fun CallFilter.matches(call: RecentCall, contact: Contact?): Boolean = when (this) {
+    CallFilter.All -> true
+    CallFilter.Missed -> call.type == CallType.Missed
+    CallFilter.Dialed -> call.type == CallType.Outgoing
+    CallFilter.Contacts -> contact != null
+    CallFilter.Unknown -> contact == null
+}
+
 @Composable
 fun HomeScreen(
     favorites: List<Contact>,
@@ -76,6 +96,7 @@ fun HomeScreen(
     contentPadding: PaddingValues,
 ) {
     var expandedId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var filter by rememberSaveable { mutableStateOf(CallFilter.All) }
 
     if (recents == null) {
         Box(Modifier.fillMaxSize().padding(contentPadding), contentAlignment = Alignment.Center) {
@@ -83,16 +104,44 @@ fun HomeScreen(
         }
         return
     }
-    val grouped = remember(recents) { recents.groupBy { dayBucket(it.date) } }
+    val shown = remember(recents, contactIndex, filter) {
+        recents.filter { filter.matches(it, contactIndex[numberKey(it.number)]) }
+    }
+    val grouped = remember(shown) { shown.groupBy { dayBucket(it.date) } }
 
     LazyColumn(
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding(),
-            bottom = contentPadding.calculateBottomPadding() + 88.dp,
+            bottom = contentPadding.calculateBottomPadding() + 16.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(2.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
+        // Filter buttons for the call log below (single choice; All is the plain log).
+        item(key = "filters") {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+            ) {
+                items(CallFilter.entries, key = { it.name }) { f ->
+                    FilterChip(
+                        selected = filter == f,
+                        onClick = {
+                            filter = f
+                            expandedId = null
+                        },
+                        label = { Text(f.label) },
+                        leadingIcon = if (filter == f) {
+                            { Icon(Icons.Rounded.Check, null, Modifier.size(FilterChipDefaults.IconSize)) }
+                        } else {
+                            null
+                        },
+                    )
+                }
+            }
+        }
+
         if (favorites.isNotEmpty()) {
             item(key = "fav-header") { SectionHeader("Favorites") }
             item(key = "fav-row") {
@@ -107,12 +156,13 @@ fun HomeScreen(
             }
         }
 
-        if (recents.isEmpty()) {
+        if (shown.isEmpty()) {
             item(key = "empty") {
                 EmptyState(
                     Icons.Rounded.History,
-                    "No recent calls",
-                    "Calls you make and receive will show up here.",
+                    filter.empty,
+                    if (filter == CallFilter.All) "Calls you make and receive will show up here."
+                    else "Tap All to see every call.",
                     Modifier.padding(top = 48.dp),
                 )
             }
