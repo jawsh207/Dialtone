@@ -92,15 +92,12 @@ private fun matchContacts(contacts: List<Contact>, query: String): List<Pair<Con
 }
 
 /**
- * The Keypad tab: the dial pad slides up from the bottom when the tab opens and stays open,
- * over a scrollable list of suggested contacts (people you call most, then favorites).
+ * The Keypad tab: the dial pad is shown at the bottom as soon as the tab opens (no
+ * animation) and stays open, over a scrollable list of suggested contacts (people you call most, then favorites).
  * While typing, the list shows contacts matching the digits instead.
- *
- * @param active the tab is on screen (not mid-swipe elsewhere, not searching).
  */
 @Composable
 fun KeypadTab(
-    active: Boolean,
     number: String,
     onNumberChange: (String) -> Unit,
     contacts: List<Contact>,
@@ -117,8 +114,7 @@ fun KeypadTab(
     val matches = remember(number, contacts) { matchContacts(contacts, number) }
     val typing = number.filter { it.isDigit() }.length >= 2
     val rows = if (typing) matches else suggested
-    val padVisible = active
-    val padSpace = if (padVisible) with(density) { padHeightPx.toDp() } else 0.dp
+    val padSpace = with(density) { padHeightPx.toDp() }
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -165,22 +161,16 @@ fun KeypadTab(
             }
         }
 
-        AnimatedVisibility(
-            visible = padVisible,
-            enter = slideInVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { it },
-            exit = slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it },
+        DialPanel(
+            number = number,
+            onNumberChange = onNumberChange,
+            lastDialed = lastDialed,
+            onCall = onCall,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = contentPadding.calculateBottomPadding()),
-        ) {
-            DialPanel(
-                number = number,
-                onNumberChange = onNumberChange,
-                lastDialed = lastDialed,
-                onCall = onCall,
-                modifier = Modifier.onSizeChanged { padHeightPx = it.height },
-            )
-        }
+                .padding(bottom = contentPadding.calculateBottomPadding())
+                .onSizeChanged { padHeightPx = it.height },
+        )
     }
 }
 
