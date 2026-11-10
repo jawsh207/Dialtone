@@ -1,5 +1,16 @@
 package app.dialtone.phone.ui.home
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.graphics.SolidColor
+import app.dialtone.phone.util.hasPermission
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -98,11 +109,22 @@ fun HomeScreen(
     favorites: List<Contact>,
     recents: List<RecentCall>?,
     contactIndex: Map<String, Contact>,
+    contacts: List<Contact>,
     onCall: (String) -> Unit,
     onOpenContacts: () -> Unit,
+    onAddFavorite: (Long) -> Unit,
     contentPadding: PaddingValues,
 ) {
     val context = LocalContext.current
+    var pickingFavorite by rememberSaveable { mutableStateOf(false) }
+    // Starring a contact needs WRITE_CONTACTS (same group as READ_CONTACTS, so usually no prompt).
+    val writePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) pickingFavorite = true
+    }
+    val addFavorite = {
+        if (context.hasPermission(Manifest.permission.WRITE_CONTACTS)) pickingFavorite = true
+        else writePermission.launch(Manifest.permission.WRITE_CONTACTS)
+    }
     val prefs = remember { context.getSharedPreferences("home", Context.MODE_PRIVATE) }
     // Remembered across launches: hidden favorites stay hidden.
     var favoritesShown by remember { mutableStateOf(!prefs.getBoolean("favorites_collapsed", false)) }
@@ -154,7 +176,7 @@ fun HomeScreen(
                 Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (favorites.isNotEmpty()) {
+                run {
                     val rotation by animateFloatAsState(if (favoritesShown) 0f else -90f, label = "chevron")
                     Row(
                         Modifier
@@ -187,7 +209,7 @@ fun HomeScreen(
                 }
             }
         }
-        if (favorites.isNotEmpty() && favoritesShown) {
+        if (favoritesShown) {
             item(key = "fav-row") {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 20.dp),
@@ -196,6 +218,8 @@ fun HomeScreen(
                     items(favorites, key = { it.id }) { contact ->
                         FavoriteTile(contact) { contact.numbers.firstOrNull()?.let { onCall(it.number) } }
                     }
+                    // Always last, after the favorites (or alone when there are none).
+                    item(key = "add") { AddFavoriteTile(onClick = addFavorite) }
                 }
             }
         }
@@ -225,6 +249,111 @@ fun HomeScreen(
                     shape = segmentShape(i, calls.size),
                     modifier = Modifier.padding(horizontal = 16.dp).animateItem(),
                 )
+            }
+        }
+    }
+    if (pickingFavorite) {
+        FavoritePicker(
+            contacts = contacts.filter { !it.starred },
+            onPick = { contact ->
+                onAddFavorite(contact.id)
+                pickingFavorite = false
+            },
+            onDismiss = { pickingFavorite = false },
+        )
+    }
+}
+
+/** Last tile in the Favorites row: opens the contact picker. */
+@Composable
+private fun AddFavoriteTile(onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Column(
+        Modifier.width(84.dp).clip(RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier.size(68.dp).clip(CircleShape).background(scheme.surfaceContainerHighest),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Rounded.Add, contentDescription = "Add favorite", tint = scheme.onSurfaceVariant, modifier = Modifier.size(28.dp))
+        }
+        Spacer(Modifier.height(8.dp))
+        Text("Add", style = MaterialTheme.typography.labelLarge, maxLines = 1, textAlign = TextAlign.Center)
+    }
+}
+
+/** Searchable list of contacts that aren't favorites yet; tapping one stars it. */
+@Composable
+private fun FavoritePicker(contacts: List<Contact>, onPick: (Contact) -> Unit, onDismiss: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    var filter by rememberSaveable { mutableStateOf("") }
+    val shown = remember(contacts, filter) {
+        val q = filter.trim()
+        if (q.isEmpty()) contacts else contacts.filter { it.name.contains(q, ignoreCase = true) }
+    }
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = scheme.surfaceContainerLow,
+    ) {
+        Text(
+            "Add to Favorites",
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 12.dp),
+        )
+        Surface(
+            shape = CircleShape,
+            color = scheme.surfaceContainerHighest,
+            modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(52.dp),
+        ) {
+            Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Search, null, tint = scheme.onSurfaceVariant)
+                Spacer(Modifier.width(12.dp))
+                BasicTextField(
+                    value = filter,
+                    onValueChange = { filter = it },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurface),
+                    cursorBrush = SolidColor(scheme.primary),
+                    modifier = Modifier.weight(1f),
+                    decorationBox = { inner ->
+                        Box(contentAlignment = Alignment.CenterStart) {
+                            if (filter.isEmpty()) Text("Search contacts", color = scheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
+                            inner()
+                        }
+                    },
+                )
+            }
+        }
+        LazyColumn(
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            if (shown.isEmpty()) {
+                item(key = "none") {
+                    Text(
+                        if (contacts.isEmpty()) "All your contacts are already favorites." else "No matching contacts",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = scheme.onSurfaceVariant,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+            }
+            itemsIndexed(shown, key = { _, c -> c.id }) { i, contact ->
+                Surface(
+                    onClick = { onPick(contact) },
+                    shape = segmentShape(i, shown.size),
+                    color = scheme.surfaceBright,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Avatar(contact.name, contact.photoUri, contact.id, 48.dp)
+                        Spacer(Modifier.width(16.dp))
+                        Text(contact.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
             }
         }
     }

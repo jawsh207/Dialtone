@@ -267,7 +267,16 @@ fun DialerApp(
                             if (open) {
                                 ContactsScreen(contacts, call, padding)
                             } else {
-                                HomeScreen(favorites, recents, contactIndex, call, { contactsOpen = true }, padding)
+                                HomeScreen(
+                                    favorites = favorites,
+                                    recents = recents,
+                                    contactIndex = contactIndex,
+                                    contacts = contacts,
+                                    onCall = call,
+                                    onOpenContacts = { contactsOpen = true },
+                                    onAddFavorite = vm::addFavorite,
+                                    contentPadding = padding,
+                                )
                             }
                         }
                         Tab.Keypad -> KeypadTab(

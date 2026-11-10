@@ -1,7 +1,10 @@
 package app.dialtone.phone.data
 
 import android.Manifest
+import android.content.ContentUris
+import android.content.ContentValues
 import android.content.Context
+import android.provider.ContactsContract
 import android.provider.ContactsContract.CommonDataKinds.Phone
 import app.dialtone.phone.util.hasPermission
 import app.dialtone.phone.util.numberKey
@@ -9,6 +12,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class ContactsRepository(private val context: Context) {
+
+    /** Adds a contact to (or removes it from) Favorites: the system "starred" flag. */
+    suspend fun setStarred(contactId: Long, starred: Boolean): Boolean = withContext(Dispatchers.IO) {
+        if (!context.hasPermission(Manifest.permission.WRITE_CONTACTS)) return@withContext false
+        runCatching {
+            context.contentResolver.update(
+                ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contactId),
+                ContentValues().apply { put(ContactsContract.Contacts.STARRED, if (starred) 1 else 0) },
+                null, null,
+            ) > 0
+        }.getOrDefault(false)
+    }
 
     suspend fun load(): List<Contact> = withContext(Dispatchers.IO) {
         if (!context.hasPermission(Manifest.permission.READ_CONTACTS)) return@withContext emptyList()
