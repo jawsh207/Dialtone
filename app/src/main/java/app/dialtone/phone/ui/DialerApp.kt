@@ -271,6 +271,7 @@ fun DialerApp(
                             }
                         }
                         Tab.Keypad -> KeypadTab(
+                            active = query == null && pager.currentPage == Tab.Keypad.ordinal,
                             number = keypadText,
                             onNumberChange = { keypadText = it },
                             contacts = contacts,

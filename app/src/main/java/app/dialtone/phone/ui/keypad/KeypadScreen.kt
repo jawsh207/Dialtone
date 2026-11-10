@@ -58,6 +58,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.dialtone.phone.data.Contact
@@ -92,12 +93,14 @@ private fun matchContacts(contacts: List<Contact>, query: String): List<Pair<Con
 }
 
 /**
- * The Keypad tab: the dial pad is shown at the bottom as soon as the tab opens (no
- * animation) and stays open, over a scrollable list of suggested contacts (people you call most, then favorites).
+ * The Keypad tab: the dial pad slides up when the tab opens and stays open, over a
+ * scrollable list of suggested contacts (people you call most, then favorites).
  * While typing, the list shows contacts matching the digits instead.
  */
 @Composable
 fun KeypadTab(
+    /** The tab is on screen (not mid-swipe elsewhere, not searching): slides the pad up. */
+    active: Boolean,
     number: String,
     onNumberChange: (String) -> Unit,
     contacts: List<Contact>,
@@ -114,14 +117,15 @@ fun KeypadTab(
     val matches = remember(number, contacts) { matchContacts(contacts, number) }
     val typing = number.filter { it.isDigit() }.length >= 2
     val rows = if (typing) matches else suggested
-    val padSpace = with(density) { padHeightPx.toDp() }
+    // The pad reaches down behind the bottom bar, so its height already includes the bar.
+    val padSpace = if (active) with(density) { padHeightPx.toDp() } else contentPadding.calculateBottomPadding()
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
             state = listState,
             contentPadding = PaddingValues(
                 top = contentPadding.calculateTopPadding(),
-                bottom = contentPadding.calculateBottomPadding() + padSpace + 16.dp,
+                bottom = padSpace + 16.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(2.dp),
             modifier = Modifier.fillMaxSize(),
@@ -161,16 +165,23 @@ fun KeypadTab(
             }
         }
 
-        DialPanel(
-            number = number,
-            onNumberChange = onNumberChange,
-            lastDialed = lastDialed,
-            onCall = onCall,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = contentPadding.calculateBottomPadding())
-                .onSizeChanged { padHeightPx = it.height },
-        )
+        // The springy slide overshoots a little. The pad's background runs down behind the
+        // (opaque) bottom bar, so the overshoot never opens a gap above the bar.
+        AnimatedVisibility(
+            visible = active,
+            enter = slideInVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { it },
+            exit = slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it },
+            modifier = Modifier.align(Alignment.BottomCenter),
+        ) {
+            DialPanel(
+                number = number,
+                onNumberChange = onNumberChange,
+                lastDialed = lastDialed,
+                onCall = onCall,
+                bottomInset = contentPadding.calculateBottomPadding(),
+                modifier = Modifier.onSizeChanged { padHeightPx = it.height },
+            )
+        }
     }
 }
 
@@ -180,6 +191,7 @@ private fun DialPanel(
     onNumberChange: (String) -> Unit,
     lastDialed: String?,
     onCall: (String) -> Unit,
+    bottomInset: Dp,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -192,7 +204,7 @@ private fun DialPanel(
         color = scheme.surfaceContainer,
         modifier = modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 12.dp)) {
+        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = bottomInset + 12.dp)) {
             BasicText(
                 text = formatNumber(number),
                 style = MaterialTheme.typography.displaySmall.copy(color = scheme.onSurface, textAlign = TextAlign.Center),
