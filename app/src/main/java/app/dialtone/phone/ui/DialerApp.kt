@@ -265,7 +265,7 @@ fun DialerApp(
                             label = "home-contacts",
                         ) { open ->
                             if (open) {
-                                ContactsScreen(contacts, call, padding)
+                                ContactsScreen(contacts, call, vm::setFavorite, padding)
                             } else {
                                 HomeScreen(
                                     favorites = favorites,

@@ -1,5 +1,13 @@
 package app.dialtone.phone.ui.contacts
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.rounded.StarOutline
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.runtime.setValue
+import app.dialtone.phone.util.hasPermission
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -50,9 +58,28 @@ import app.dialtone.phone.ui.components.segmentShape
 import app.dialtone.phone.util.formatNumber
 
 @Composable
-fun ContactsScreen(contacts: List<Contact>, onCall: (String) -> Unit, contentPadding: PaddingValues) {
+fun ContactsScreen(
+    contacts: List<Contact>,
+    onCall: (String) -> Unit,
+    onSetFavorite: (contactId: Long, favorite: Boolean) -> Unit,
+    contentPadding: PaddingValues,
+) {
     val context = LocalContext.current
     val expanded = rememberSaveable { mutableStateOf<Long?>(null) }
+    // Starring needs WRITE_CONTACTS (same group as READ_CONTACTS, so usually no prompt).
+    var pending by remember { mutableStateOf<Pair<Long, Boolean>?>(null) }
+    val writePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        pending?.let { (id, fav) -> if (granted) onSetFavorite(id, fav) }
+        pending = null
+    }
+    val setFavorite: (Long, Boolean) -> Unit = { id, fav ->
+        if (context.hasPermission(Manifest.permission.WRITE_CONTACTS)) {
+            onSetFavorite(id, fav)
+        } else {
+            pending = id to fav
+            writePermission.launch(Manifest.permission.WRITE_CONTACTS)
+        }
+    }
     val grouped = remember(contacts) {
         contacts.groupBy { c -> c.name.firstOrNull()?.uppercaseChar()?.takeIf { it.isLetter() } ?: '#' }
             .toSortedMap(compareBy<Char> { if (it == '#') Char.MAX_VALUE else it })
@@ -86,7 +113,7 @@ fun ContactsScreen(contacts: List<Contact>, onCall: (String) -> Unit, contentPad
         }
         grouped.forEach { (letter, list) ->
             item(key = "h-$letter") { SectionHeader(letter.toString()) }
-            contactItems(list, expanded, onCall)
+            contactItems(list, expanded, onCall, setFavorite)
         }
     }
 }
@@ -95,6 +122,8 @@ fun LazyListScope.contactItems(
     list: List<Contact>,
     expanded: MutableState<Long?>,
     onCall: (String) -> Unit,
+    /** Adds/removes Favorites from the expanded row; null hides the option (e.g. search). */
+    onSetFavorite: ((contactId: Long, favorite: Boolean) -> Unit)? = null,
 ) {
     itemsIndexed(list, key = { _, c -> c.id }) { i, contact ->
         ContactRow(
@@ -102,6 +131,7 @@ fun LazyListScope.contactItems(
             expanded = expanded.value == contact.id,
             onToggle = { expanded.value = if (expanded.value == contact.id) null else contact.id },
             onCall = onCall,
+            onSetFavorite = onSetFavorite,
             shape = segmentShape(i, list.size),
             modifier = Modifier.padding(horizontal = 16.dp).animateItem(),
         )
@@ -114,6 +144,7 @@ private fun ContactRow(
     expanded: Boolean,
     onToggle: () -> Unit,
     onCall: (String) -> Unit,
+    onSetFavorite: ((Long, Boolean) -> Unit)?,
     shape: Shape,
     modifier: Modifier = Modifier,
 ) {
@@ -154,6 +185,20 @@ private fun ContactRow(
                                 shape = RoundedCornerShape(14.dp),
                             ) { Icon(Icons.Rounded.Call, "Call") }
                         }
+                    }
+                    if (onSetFavorite != null) {
+                        AssistChip(
+                            onClick = { onSetFavorite(contact.id, !contact.starred) },
+                            label = { Text(if (contact.starred) "Remove from Favorites" else "Add to Favorites") },
+                            leadingIcon = {
+                                Icon(
+                                    if (contact.starred) Icons.Rounded.StarOutline else Icons.Rounded.Star,
+                                    null,
+                                    Modifier.size(AssistChipDefaults.IconSize),
+                                )
+                            },
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
                     }
                 }
             }

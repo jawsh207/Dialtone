@@ -86,10 +86,12 @@ class DialerViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Called on resume — picks up permission grants that observers missed. */
-    /** Stars the contact; the contacts observer then reloads Favorites. */
-    fun addFavorite(contactId: Long) {
-        viewModelScope.launch { contactsRepo.setStarred(contactId, true) }
+    /** Stars or unstars the contact; the contacts observer then reloads Favorites. */
+    fun setFavorite(contactId: Long, favorite: Boolean) {
+        viewModelScope.launch { contactsRepo.setStarred(contactId, favorite) }
     }
+
+    fun addFavorite(contactId: Long) = setFavorite(contactId, true)
 
     fun refresh() {
         viewModelScope.launch {
