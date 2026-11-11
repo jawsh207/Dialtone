@@ -80,6 +80,9 @@ fun ContactsScreen(
             writePermission.launch(Manifest.permission.WRITE_CONTACTS)
         }
     }
+    // Favorites first, as in the Contacts app; they're also listed under their letter below.
+    val favorites = remember(contacts) { contacts.filter { it.starred } }
+    val expandedFavorite = rememberSaveable { mutableStateOf<Long?>(null) }
     val grouped = remember(contacts) {
         contacts.groupBy { c -> c.name.firstOrNull()?.uppercaseChar()?.takeIf { it.isLetter() } ?: '#' }
             .toSortedMap(compareBy<Char> { if (it == '#') Char.MAX_VALUE else it })
@@ -111,6 +114,19 @@ fun ContactsScreen(
                 EmptyState(Icons.Rounded.Contacts, "No contacts", "Contacts with phone numbers show up here.")
             }
         }
+        if (favorites.isNotEmpty()) {
+            item(key = "h-favorites") {
+                Row(
+                    Modifier.padding(start = 28.dp, top = 20.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Rounded.Star, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Favorites", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            contactItems(favorites, expandedFavorite, onCall, setFavorite, keyPrefix = "fav-")
+        }
         grouped.forEach { (letter, list) ->
             item(key = "h-$letter") { SectionHeader(letter.toString()) }
             contactItems(list, expanded, onCall, setFavorite)
@@ -124,8 +140,10 @@ fun LazyListScope.contactItems(
     onCall: (String) -> Unit,
     /** Adds/removes Favorites from the expanded row; null hides the option (e.g. search). */
     onSetFavorite: ((contactId: Long, favorite: Boolean) -> Unit)? = null,
+    /** Distinguishes a contact listed twice (Favorites and its letter section). */
+    keyPrefix: String = "",
 ) {
-    itemsIndexed(list, key = { _, c -> c.id }) { i, contact ->
+    itemsIndexed(list, key = { _, c -> "$keyPrefix${c.id}" }) { i, contact ->
         ContactRow(
             contact = contact,
             expanded = expanded.value == contact.id,
@@ -167,7 +185,6 @@ private fun ContactRow(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
-                if (contact.starred) Icon(Icons.Rounded.Star, "Favorite", Modifier.size(18.dp), tint = scheme.primary)
             }
             AnimatedVisibility(expanded) {
                 Column(Modifier.padding(start = 76.dp, end = 12.dp, bottom = 10.dp)) {
