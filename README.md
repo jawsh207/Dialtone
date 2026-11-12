@@ -155,7 +155,9 @@ Google Sans Flex for all text, `surfaceContainerLow` pages, `surfaceBright` card
 
 The handset is the GrapheneOS Dialer launcher icon (Apache-2.0), recolored white on green.
 
-## License notes
+## License
+
+Dialtone is licensed under the [Apache License 2.0](LICENSE). Copyright 2026 jawsh207.
 
 Code in `app/src/main/java/app/dialtone/phone/vvm/` and `res/xml/vvm_config.xml` comes from the
 Android Open Source Project Dialer (via GrapheneOS) under the Apache License 2.0; original
