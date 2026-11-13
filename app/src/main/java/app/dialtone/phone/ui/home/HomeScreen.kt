@@ -1,5 +1,12 @@
 package app.dialtone.phone.ui.home
 
+import android.view.HapticFeedbackConstants
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalView
+import app.dialtone.phone.screening.SendToVoicemail
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -80,6 +87,7 @@ import app.dialtone.phone.telecom.Dialer
 import app.dialtone.phone.ui.components.Avatar
 import app.dialtone.phone.ui.components.EmptyState
 import app.dialtone.phone.ui.components.SectionHeader
+import app.dialtone.phone.ui.components.ContactPickerSheet
 import app.dialtone.phone.ui.components.segmentShape
 import app.dialtone.phone.util.DayBucket
 import app.dialtone.phone.util.dayBucket
@@ -117,6 +125,8 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     var pickingFavorite by rememberSaveable { mutableStateOf(false) }
+    val voicemailNumbers by SendToVoicemail.numbers(context).collectAsState()
+    val voicemailKeys = remember(voicemailNumbers) { voicemailNumbers.orEmpty().map(::numberKey).toSet() }
     // Starring a contact needs WRITE_CONTACTS (same group as READ_CONTACTS, so usually no prompt).
     val writePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) pickingFavorite = true
@@ -246,6 +256,10 @@ fun HomeScreen(
                     expanded = expandedId == call.id,
                     onToggle = { expandedId = if (expandedId == call.id) null else call.id },
                     onCall = onCall,
+                    sentToVoicemail = numberKey(call.number) in voicemailKeys,
+                    onSetSendToVoicemail = { send ->
+                        if (send) SendToVoicemail.add(context, call.number) else SendToVoicemail.remove(context, call.number)
+                    },
                     shape = segmentShape(i, calls.size),
                     modifier = Modifier.padding(horizontal = 16.dp).animateItem(),
                 )
@@ -253,8 +267,10 @@ fun HomeScreen(
         }
     }
     if (pickingFavorite) {
-        FavoritePicker(
+        ContactPickerSheet(
+            title = "Add to Favorites",
             contacts = contacts.filter { !it.starred },
+            emptyText = "All your contacts are already favorites.",
             onPick = { contact ->
                 onAddFavorite(contact.id)
                 pickingFavorite = false
@@ -280,82 +296,6 @@ private fun AddFavoriteTile(onClick: () -> Unit) {
         }
         Spacer(Modifier.height(8.dp))
         Text("Add", style = MaterialTheme.typography.labelLarge, maxLines = 1, textAlign = TextAlign.Center)
-    }
-}
-
-/** Searchable list of contacts that aren't favorites yet; tapping one stars it. */
-@Composable
-private fun FavoritePicker(contacts: List<Contact>, onPick: (Contact) -> Unit, onDismiss: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    var filter by rememberSaveable { mutableStateOf("") }
-    val shown = remember(contacts, filter) {
-        val q = filter.trim()
-        if (q.isEmpty()) contacts else contacts.filter { it.name.contains(q, ignoreCase = true) }
-    }
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = scheme.surfaceContainerLow,
-    ) {
-        Text(
-            "Add to Favorites",
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 12.dp),
-        )
-        Surface(
-            shape = CircleShape,
-            color = scheme.surfaceContainerHighest,
-            modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(52.dp),
-        ) {
-            Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Search, null, tint = scheme.onSurfaceVariant)
-                Spacer(Modifier.width(12.dp))
-                BasicTextField(
-                    value = filter,
-                    onValueChange = { filter = it },
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurface),
-                    cursorBrush = SolidColor(scheme.primary),
-                    modifier = Modifier.weight(1f),
-                    decorationBox = { inner ->
-                        Box(contentAlignment = Alignment.CenterStart) {
-                            if (filter.isEmpty()) Text("Search contacts", color = scheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
-                            inner()
-                        }
-                    },
-                )
-            }
-        }
-        LazyColumn(
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            if (shown.isEmpty()) {
-                item(key = "none") {
-                    Text(
-                        if (contacts.isEmpty()) "All your contacts are already favorites." else "No matching contacts",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = scheme.onSurfaceVariant,
-                        modifier = Modifier.padding(16.dp),
-                    )
-                }
-            }
-            itemsIndexed(shown, key = { _, c -> c.id }) { i, contact ->
-                Surface(
-                    onClick = { onPick(contact) },
-                    shape = segmentShape(i, shown.size),
-                    color = scheme.surfaceBright,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Avatar(contact.name, contact.photoUri, contact.id, 48.dp)
-                        Spacer(Modifier.width(16.dp))
-                        Text(contact.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -392,11 +332,16 @@ private fun RecentRow(
     expanded: Boolean,
     onToggle: () -> Unit,
     onCall: (String) -> Unit,
+    /** Number is on the "Send to voicemail" list; long press offers to change that. */
+    sentToVoicemail: Boolean,
+    onSetSendToVoicemail: (Boolean) -> Unit,
     shape: Shape,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val scheme = MaterialTheme.colorScheme
+    var menu by remember { mutableStateOf(false) }
     val missed = call.type == CallType.Missed || call.type == CallType.Rejected
     val name = contact?.name ?: call.cachedName?.takeIf { it.isNotBlank() }
     val display = name ?: if (call.number.isBlank()) "Private number" else formatNumber(call.number)
@@ -408,7 +353,21 @@ private fun RecentRow(
         label = "row",
     )
 
-    Surface(onClick = onToggle, shape = shape, color = container, modifier = modifier.fillMaxWidth()) {
+    Box(modifier.fillMaxWidth()) {
+    Surface(
+        shape = shape,
+        color = container,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .combinedClickable(
+                onClick = onToggle,
+                onLongClick = if (call.number.isBlank()) null else ({
+                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                    menu = true
+                }),
+            ),
+    ) {
         Column {
             Row(
                 Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -469,5 +428,16 @@ private fun RecentRow(
                 }
             }
         }
+    }
+    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+        DropdownMenuItem(
+            text = { Text(if (sentToVoicemail) "Stop sending to voicemail" else "Send to voicemail") },
+            leadingIcon = { Icon(Icons.Rounded.Voicemail, null) },
+            onClick = {
+                menu = false
+                onSetSendToVoicemail(!sentToVoicemail)
+            },
+        )
+    }
     }
 }

@@ -125,6 +125,16 @@
         </receiver>
 
         <!-- ===== Voicemail transcription (via the system speech recognizer) ===== -->
+        <!-- "Send to voicemail": Telecom asks the default phone app about each incoming call. -->
+        <service
+            android:name=".screening.SendToVoicemailScreeningService"
+            android:exported="true"
+            android:permission="android.permission.BIND_SCREENING_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.CallScreeningService" />
+            </intent-filter>
+        </service>
+
         <service
             android:name=".transcription.TranscriptionJobService"
             android:exported="false"

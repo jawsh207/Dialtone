@@ -203,6 +203,7 @@ fun VoicemailScreen(
             accounts = accounts,
             health = health,
             transcription = transcription,
+            contactIndex = contactIndex,
             actions = actions,
             onDismiss = onDismissSettings,
         )

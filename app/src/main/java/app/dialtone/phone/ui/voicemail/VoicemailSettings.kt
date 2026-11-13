@@ -1,5 +1,18 @@
 package app.dialtone.phone.ui.voicemail
 
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.input.KeyboardType
+import app.dialtone.phone.data.Contact
+import app.dialtone.phone.screening.SendToVoicemail
+import app.dialtone.phone.ui.components.ContactPickerSheet
+import app.dialtone.phone.util.formatNumber
+import app.dialtone.phone.util.numberKey
+import androidx.compose.material3.IconButton
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.widget.Toast
@@ -147,6 +160,7 @@ fun VoicemailSettingsSheet(
     accounts: List<VvmAccount>,
     health: VvmHealth,
     transcription: TranscriptionUi,
+    contactIndex: Map<String, Contact>,
     actions: VoicemailActions,
     onDismiss: () -> Unit,
 ) {
@@ -214,6 +228,9 @@ fun VoicemailSettingsSheet(
                 Spacer(Modifier.padding(top = 12.dp))
                 TranscriptionCard(transcription, actions.onToggleTranscription)
             }
+
+            Spacer(Modifier.padding(top = 12.dp))
+            SendToVoicemailCard(contactIndex)
 
             Spacer(Modifier.padding(top = 16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -321,5 +338,97 @@ private fun TranscriptionCard(transcription: TranscriptionUi, onToggle: (Boolean
                 modifier = Modifier.padding(start = 0.dp),
             ) { Text(if (transcription.available) "Change voice input" else "Set up voice input") }
         }
+    }
+}
+
+/**
+ * "Send to voicemail": numbers whose calls skip ringing and go straight to voicemail.
+ * Lists them (contact name when known) with remove buttons; add by typing a number or by
+ * picking a contact (all their numbers). The call log and Contacts list offer this too.
+ */
+@Composable
+private fun SendToVoicemailCard(contactIndex: Map<String, Contact>) {
+    val context = LocalContext.current
+    val scheme = MaterialTheme.colorScheme
+    val numbers by SendToVoicemail.numbers(context).collectAsState()
+    var typing by rememberSaveable { mutableStateOf(false) }
+    var picking by rememberSaveable { mutableStateOf(false) }
+    val list = numbers.orEmpty()
+
+    Surface(shape = RoundedCornerShape(24.dp), color = scheme.surfaceBright, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 8.dp)) {
+            Text("Send to voicemail", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Calls from these numbers don't ring; they go straight to voicemail.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = scheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 8.dp),
+            )
+            Spacer(Modifier.padding(top = 4.dp))
+            list.forEach { number ->
+                val name = contactIndex[numberKey(number)]?.name
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
+                        Text(name ?: formatNumber(number), style = MaterialTheme.typography.bodyLarge, maxLines = 1)
+                        if (name != null) {
+                            Text(formatNumber(number), style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
+                        }
+                    }
+                    IconButton(onClick = { SendToVoicemail.remove(context, number) }) {
+                        Icon(Icons.Rounded.Close, "Stop sending ${name ?: number} to voicemail", tint = scheme.onSurfaceVariant)
+                    }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(onClick = { typing = true }) { Text("Add number") }
+                TextButton(onClick = { picking = true }) { Text("Add from contacts") }
+            }
+        }
+    }
+
+    if (typing) {
+        var entry by rememberSaveable { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { typing = false },
+            title = { Text("Send to voicemail") },
+            text = {
+                OutlinedTextField(
+                    value = entry,
+                    onValueChange = { v -> entry = v.filter { it.isDigit() || it in "+()- " } },
+                    label = { Text("Phone number") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = numberKey(entry).length >= 3,
+                    onClick = {
+                        SendToVoicemail.add(context, entry)
+                        typing = false
+                    },
+                ) { Text("Add") }
+            },
+            dismissButton = { TextButton(onClick = { typing = false }) { Text("Cancel") } },
+        )
+    }
+
+    if (picking) {
+        val keys = list.map(::numberKey).toSet()
+        val contacts = remember(contactIndex, keys) {
+            contactIndex.values.distinctBy { it.id }
+                .filter { c -> c.numbers.any { numberKey(it.number) !in keys } }
+                .sortedBy { it.name.lowercase() }
+        }
+        ContactPickerSheet(
+            title = "Send to voicemail",
+            contacts = contacts,
+            emptyText = "All your contacts are already sent to voicemail.",
+            onPick = { contact ->
+                SendToVoicemail.add(context, contact.numbers.map { it.number })
+                picking = false
+            },
+            onDismiss = { picking = false },
+        )
     }
 }

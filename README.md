@@ -94,6 +94,15 @@ It's the engine from the AOSP Dialer, as shipped in GrapheneOS, ported into `vvm
 Left out from the stock dialer: Google's cloud transcription (needs Google's private API),
 voicemail archiving, and the PIN-change and greeting screens.
 
+### Send to voicemail
+
+Numbers on the **Send to voicemail** list skip ringing and go straight to voicemail. Add them
+from a contact (Contacts list › expand › Send to voicemail), by long-pressing a call in the call
+log, or in Voicemail settings (type a number or pick a contact), where the list is managed too.
+Dialtone, as the default phone app, screens each incoming call (`CallScreeningService`) and
+rejects listed numbers as if Decline were tapped, so the carrier forwards them to voicemail. The
+call still shows in the call log, without a missed-call notification.
+
 ### Voicemail transcription
 
 Voicemail settings has a **Transcribe voicemail** switch (off by default). When on, voicemails

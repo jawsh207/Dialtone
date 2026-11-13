@@ -1,5 +1,10 @@
 package app.dialtone.phone.ui.contacts
 
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material.icons.rounded.Voicemail
+import androidx.compose.runtime.collectAsState
+import app.dialtone.phone.screening.SendToVoicemail
+import app.dialtone.phone.util.numberKey
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -66,6 +71,12 @@ fun ContactsScreen(
 ) {
     val context = LocalContext.current
     val expanded = rememberSaveable { mutableStateOf<Long?>(null) }
+    val voicemailNumbers by SendToVoicemail.numbers(context).collectAsState()
+    val voicemailKeys = remember(voicemailNumbers) { voicemailNumbers.orEmpty().map(::numberKey).toSet() }
+    val setVoicemail: (Contact, Boolean) -> Unit = { contact, send ->
+        val numbers = contact.numbers.map { it.number }
+        if (send) SendToVoicemail.add(context, numbers) else SendToVoicemail.remove(context, numbers)
+    }
     // Starring needs WRITE_CONTACTS (same group as READ_CONTACTS, so usually no prompt).
     var pending by remember { mutableStateOf<Pair<Long, Boolean>?>(null) }
     val writePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -125,11 +136,11 @@ fun ContactsScreen(
                     Text("Favorites", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                 }
             }
-            contactItems(favorites, expandedFavorite, onCall, setFavorite, keyPrefix = "fav-")
+            contactItems(favorites, expandedFavorite, onCall, setFavorite, keyPrefix = "fav-", voicemailKeys = voicemailKeys, onSetSendToVoicemail = setVoicemail)
         }
         grouped.forEach { (letter, list) ->
             item(key = "h-$letter") { SectionHeader(letter.toString()) }
-            contactItems(list, expanded, onCall, setFavorite)
+            contactItems(list, expanded, onCall, setFavorite, voicemailKeys = voicemailKeys, onSetSendToVoicemail = setVoicemail)
         }
     }
 }
@@ -142,6 +153,10 @@ fun LazyListScope.contactItems(
     onSetFavorite: ((contactId: Long, favorite: Boolean) -> Unit)? = null,
     /** Distinguishes a contact listed twice (Favorites and its letter section). */
     keyPrefix: String = "",
+    /** numberKeys on the "Send to voicemail" list. */
+    voicemailKeys: Set<String> = emptySet(),
+    /** Sends all the contact's numbers to voicemail (or stops); null hides the option. */
+    onSetSendToVoicemail: ((Contact, Boolean) -> Unit)? = null,
 ) {
     itemsIndexed(list, key = { _, c -> "$keyPrefix${c.id}" }) { i, contact ->
         ContactRow(
@@ -150,6 +165,8 @@ fun LazyListScope.contactItems(
             onToggle = { expanded.value = if (expanded.value == contact.id) null else contact.id },
             onCall = onCall,
             onSetFavorite = onSetFavorite,
+            sentToVoicemail = contact.numbers.any { numberKey(it.number) in voicemailKeys },
+            onSetSendToVoicemail = onSetSendToVoicemail?.let { f -> { send: Boolean -> f(contact, send) } },
             shape = segmentShape(i, list.size),
             modifier = Modifier.padding(horizontal = 16.dp).animateItem(),
         )
@@ -163,6 +180,8 @@ private fun ContactRow(
     onToggle: () -> Unit,
     onCall: (String) -> Unit,
     onSetFavorite: ((Long, Boolean) -> Unit)?,
+    sentToVoicemail: Boolean,
+    onSetSendToVoicemail: ((Boolean) -> Unit)?,
     shape: Shape,
     modifier: Modifier = Modifier,
 ) {
@@ -203,6 +222,10 @@ private fun ContactRow(
                             ) { Icon(Icons.Rounded.Call, "Call") }
                         }
                     }
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(top = 4.dp),
+                    ) {
                     if (onSetFavorite != null) {
                         AssistChip(
                             onClick = { onSetFavorite(contact.id, !contact.starred) },
@@ -214,8 +237,15 @@ private fun ContactRow(
                                     Modifier.size(AssistChipDefaults.IconSize),
                                 )
                             },
-                            modifier = Modifier.padding(top = 4.dp),
                         )
+                    }
+                    if (onSetSendToVoicemail != null) {
+                        AssistChip(
+                            onClick = { onSetSendToVoicemail(!sentToVoicemail) },
+                            label = { Text(if (sentToVoicemail) "Stop sending to voicemail" else "Send to voicemail") },
+                            leadingIcon = { Icon(Icons.Rounded.Voicemail, null, Modifier.size(AssistChipDefaults.IconSize)) },
+                        )
+                    }
                     }
                 }
             }
