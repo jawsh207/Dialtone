@@ -127,6 +127,11 @@ fun DialerApp(
     var voicemailSettingsOpen by rememberSaveable { mutableStateOf(false) }
     // The contacts list, opened from Home's Contacts button in Home's own space.
     var contactsOpen by rememberSaveable { mutableStateOf(false) }
+    // Keypad tab's dial pad: raised on arriving at the tab and by tapping Keypad again;
+    // lowered by scrolling the Suggested list.
+    var keypadPadShown by rememberSaveable { mutableStateOf(true) }
+    // Arriving on the Keypad tab (swipe or tap) always brings the dial pad up.
+    LaunchedEffect(tab) { if (tab == Tab.Keypad) keypadPadShown = true }
     val showingContacts = contactsOpen && tab == Tab.Home
 
     LifecycleResumeEffect(Unit) {
@@ -137,6 +142,7 @@ fun DialerApp(
         pendingNumber?.let {
             keypadText = it
             query = null
+            keypadPadShown = true
             pager.scrollToPage(Tab.Keypad.ordinal)
             onPendingConsumed()
         }
@@ -233,6 +239,7 @@ fun DialerApp(
                             onClick = {
                                 query = null
                                 if (t == Tab.Home) contactsOpen = false
+                                if (t == Tab.Keypad) keypadPadShown = true
                                 scope.launch { pager.animateScrollToPage(t.ordinal) }
                             },
                             icon = {
@@ -281,6 +288,8 @@ fun DialerApp(
                         }
                         Tab.Keypad -> KeypadTab(
                             active = query == null && pager.currentPage == Tab.Keypad.ordinal,
+                            padShown = keypadPadShown,
+                            onPadShownChange = { keypadPadShown = it },
                             number = keypadText,
                             onNumberChange = { keypadText = it },
                             contacts = contacts,

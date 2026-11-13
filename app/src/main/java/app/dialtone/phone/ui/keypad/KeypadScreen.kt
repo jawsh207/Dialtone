@@ -93,14 +93,18 @@ private fun matchContacts(contacts: List<Contact>, query: String): List<Pair<Con
 }
 
 /**
- * The Keypad tab: the dial pad slides up when the tab opens and stays open, over a
- * scrollable list of suggested contacts (people you call most, then favorites).
- * While typing, the list shows contacts matching the digits instead.
+ * The Keypad tab: the dial pad slides up when the tab opens, over a scrollable list of
+ * suggested contacts (people you call most, then favorites). Scrolling the list lowers the
+ * pad; tapping the Keypad tab again raises it. While typing, the list shows contacts
+ * matching the digits instead.
  */
 @Composable
 fun KeypadTab(
     /** The tab is on screen (not mid-swipe elsewhere, not searching): slides the pad up. */
     active: Boolean,
+    /** The pad is raised (false after the list was scrolled). */
+    padShown: Boolean,
+    onPadShownChange: (Boolean) -> Unit,
     number: String,
     onNumberChange: (String) -> Unit,
     contacts: List<Contact>,
@@ -113,12 +117,17 @@ fun KeypadTab(
     val density = LocalDensity.current
     var padHeightPx by remember { mutableIntStateOf(0) }
     val listState = rememberLazyListState()
+    // Scrolling the suggestions lowers the pad out of the way.
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (listState.isScrollInProgress && padShown) onPadShownChange(false)
+    }
 
     val matches = remember(number, contacts) { matchContacts(contacts, number) }
     val typing = number.filter { it.isDigit() }.length >= 2
     val rows = if (typing) matches else suggested
     // The pad reaches down behind the bottom bar, so its height already includes the bar.
-    val padSpace = if (active) with(density) { padHeightPx.toDp() } else contentPadding.calculateBottomPadding()
+    val padUp = active && padShown
+    val padSpace = if (padUp) with(density) { padHeightPx.toDp() } else contentPadding.calculateBottomPadding()
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -168,7 +177,7 @@ fun KeypadTab(
         // The springy slide overshoots a little. The pad's background runs down behind the
         // (opaque) bottom bar, so the overshoot never opens a gap above the bar.
         AnimatedVisibility(
-            visible = active,
+            visible = padUp,
             enter = slideInVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { it },
             exit = slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it },
             modifier = Modifier.align(Alignment.BottomCenter),
