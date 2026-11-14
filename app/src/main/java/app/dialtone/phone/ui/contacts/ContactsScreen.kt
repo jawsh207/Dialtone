@@ -1,5 +1,16 @@
 package app.dialtone.phone.ui.contacts
 
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.launch
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Call
 import androidx.compose.foundation.layout.FlowRow
@@ -100,7 +111,16 @@ fun ContactsScreen(
         contacts.groupBy { c -> c.name.firstOrNull()?.uppercaseChar()?.takeIf { it.isLetter() } ?: '#' }
             .toSortedMap(compareBy<Char> { if (it == '#') Char.MAX_VALUE else it })
     }
+    // Where each letter's header sits in the list, for the A–Z strip.
+    val headerIndex = remember(grouped, favorites, contacts.isEmpty()) {
+        var index = 1 + (if (contacts.isEmpty()) 1 else 0) + (if (favorites.isNotEmpty()) 1 + favorites.size else 0)
+        grouped.entries.associate { (letter, members) -> (letter.toString() to index).also { index += 1 + members.size } }
+    }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    Box(Modifier.fillMaxSize()) {
     LazyColumn(
+        state = listState,
         contentPadding = PaddingValues(
             top = contentPadding.calculateTopPadding() + 8.dp,
             bottom = contentPadding.calculateBottomPadding() + 16.dp,
@@ -145,7 +165,78 @@ fun ContactsScreen(
             contactItems(list, expanded, onCall, setFavorite, voicemailKeys = voicemailKeys, onSetSendToVoicemail = setVoicemail)
         }
     }
+    if (grouped.size > 1) {
+        LetterScroller(
+            letters = grouped.keys.map { it.toString() },
+            onLetter = { letter -> headerIndex[letter]?.let { scope.launch { listState.scrollToItem(it) } } },
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(top = contentPadding.calculateTopPadding(), bottom = contentPadding.calculateBottomPadding()),
+        )
+    }
+    }
 }
+
+/**
+ * The A–Z strip, as in the Contacts app: tap or drag along it to jump to a letter. While
+ * dragging, the letter shows large beside it.
+ */
+@Composable
+private fun LetterScroller(letters: List<String>, onLetter: (String) -> Unit, modifier: Modifier = Modifier) {
+    var active by remember { mutableStateOf<String?>(null) }
+    var height by remember { mutableIntStateOf(0) }
+    fun pick(y: Float) {
+        if (height == 0) return
+        val letter = letters[(y / height * letters.size).toInt().coerceIn(0, letters.lastIndex)]
+        if (letter != active) {
+            active = letter
+            onLetter(letter)
+        }
+    }
+    Box(modifier, contentAlignment = Alignment.CenterEnd) {
+        Column(
+            // The letters sit in the list's right margin; the touch area reaches a little past it.
+            Modifier
+                .width(24.dp)
+                .onSizeChanged { height = it.height }
+                .pointerInput(letters) {
+                    detectVerticalDragGestures(
+                        onDragStart = { pick(it.y) },
+                        onDragEnd = { active = null },
+                        onDragCancel = { active = null },
+                    ) { change, _ -> pick(change.position.y) }
+                }
+                .pointerInput(letters) {
+                    detectTapGestures(onPress = { pick(it.y); tryAwaitRelease(); active = null })
+                },
+            horizontalAlignment = Alignment.End,
+        ) {
+            letters.forEach { letter ->
+                Box(Modifier.width(16.dp).height(LETTER_HEIGHT), contentAlignment = Alignment.Center) {
+                    Text(
+                        letter,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (letter == active) FontWeight.Bold else FontWeight.Medium,
+                        color = if (letter == active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+        active?.let { letter ->
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.padding(end = 56.dp).size(72.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(letter, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
+            }
+        }
+    }
+}
+
+private val LETTER_HEIGHT = 18.dp
 
 fun LazyListScope.contactItems(
     list: List<Contact>,
