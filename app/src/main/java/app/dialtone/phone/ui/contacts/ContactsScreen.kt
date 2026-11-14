@@ -215,13 +215,14 @@ private fun ContactRow(
                                 Text(formatNumber(n.number), style = MaterialTheme.typography.bodyMedium)
                                 Text(n.label, style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant)
                             }
-                            IconButton(onClick = { Dialer.sms(context, n.number) }) {
+                            // Round tonal buttons, like the call button in the call log.
+                            FilledTonalIconButton(onClick = { Dialer.sms(context, n.number) }) {
                                 Icon(Icons.Outlined.ChatBubbleOutline, "Text")
                             }
-                            FilledTonalIconButton(
-                                onClick = { onCall(n.number) },
-                                shape = RoundedCornerShape(14.dp),
-                            ) { Icon(Icons.Outlined.Call, "Call") }
+                            Spacer(Modifier.width(8.dp))
+                            FilledTonalIconButton(onClick = { onCall(n.number) }) {
+                                Icon(Icons.Outlined.Call, "Call")
+                            }
                         }
                     }
                     FlowRow(
