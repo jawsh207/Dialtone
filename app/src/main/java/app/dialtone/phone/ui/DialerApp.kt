@@ -1,5 +1,7 @@
 package app.dialtone.phone.ui
 
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInHorizontally
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
@@ -83,7 +85,7 @@ import app.dialtone.phone.ui.contacts.ContactsScreen
 import app.dialtone.phone.ui.keypad.KeypadTab
 import app.dialtone.phone.ui.voicemail.VoicemailActions
 import app.dialtone.phone.ui.voicemail.VoicemailScreen
-import app.dialtone.phone.ui.voicemail.VoicemailSettingsSheet
+import app.dialtone.phone.ui.settings.SettingsScreen
 import app.dialtone.phone.voicemail.VoicemailNotifier
 import app.dialtone.phone.util.formatNumber
 import app.dialtone.phone.util.numberKey
@@ -317,19 +319,23 @@ fun DialerApp(
                 }
             }
         }
+        // Settings: a full page over the app, opened from the gear in any search bar.
+        AnimatedVisibility(
+            visible = voicemailSettingsOpen,
+            enter = slideInHorizontally(spatial) { it / 4 } + fadeIn(effects),
+            exit = slideOutHorizontally(spatial) { it / 4 } + fadeOut(effects),
+        ) {
+            SettingsScreen(
+                accounts = vvmAccounts,
+                health = vvmHealth,
+                transcription = transcription,
+                contactIndex = contactIndex,
+                actions = voicemailActions,
+                onBack = { voicemailSettingsOpen = false },
+            )
+        }
     }
 
-    // Opened from the gear in the search bar on any tab, so it lives above the pages.
-    if (voicemailSettingsOpen) {
-        VoicemailSettingsSheet(
-            accounts = vvmAccounts,
-            health = vvmHealth,
-            transcription = transcription,
-            contactIndex = contactIndex,
-            actions = voicemailActions,
-            onDismiss = { voicemailSettingsOpen = false },
-        )
-    }
 }
 
 @Composable
