@@ -1,5 +1,7 @@
 package app.dialtone.phone.ui.home
 
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Call
 import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.material3.DropdownMenu
@@ -399,7 +401,7 @@ private fun RecentRow(
                 }
                 if (call.number.isNotBlank()) {
                     FilledTonalIconButton(onClick = { onCall(call.number) }) {
-                        Icon(Icons.Rounded.Call, "Call $display")
+                        Icon(Icons.Outlined.Call, "Call $display")
                     }
                 }
             }
@@ -411,7 +413,7 @@ private fun RecentRow(
                     AssistChip(
                         onClick = { Dialer.sms(context, call.number) },
                         label = { Text("Message") },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Rounded.Message, null, Modifier.size(18.dp)) },
+                        leadingIcon = { Icon(Icons.Outlined.ChatBubbleOutline, null, Modifier.size(18.dp)) },
                     )
                     if (contact == null) {
                         AssistChip(

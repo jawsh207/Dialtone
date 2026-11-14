@@ -1,5 +1,7 @@
 package app.dialtone.phone.ui.contacts
 
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Call
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material.icons.rounded.Voicemail
 import androidx.compose.runtime.collectAsState
@@ -214,12 +216,12 @@ private fun ContactRow(
                                 Text(n.label, style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant)
                             }
                             IconButton(onClick = { Dialer.sms(context, n.number) }) {
-                                Icon(Icons.AutoMirrored.Rounded.Message, "Message")
+                                Icon(Icons.Outlined.ChatBubbleOutline, "Text")
                             }
                             FilledTonalIconButton(
                                 onClick = { onCall(n.number) },
                                 shape = RoundedCornerShape(14.dp),
-                            ) { Icon(Icons.Rounded.Call, "Call") }
+                            ) { Icon(Icons.Outlined.Call, "Call") }
                         }
                     }
                     FlowRow(
