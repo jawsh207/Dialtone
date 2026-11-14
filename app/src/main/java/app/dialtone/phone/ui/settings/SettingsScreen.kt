@@ -124,7 +124,9 @@ fun SettingsScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().background(scheme.background)) {
+    // A Surface (not just a background) so text and icons get the theme's on-background colour.
+    Surface(color = scheme.background, contentColor = scheme.onBackground, modifier = Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize()) {
         // Opaque in the background colour (status bar included), so the list scrolls behind it.
         Row(
             Modifier.fillMaxWidth().background(scheme.background).statusBarsPadding().height(64.dp).padding(horizontal = 4.dp),
@@ -323,6 +325,7 @@ fun SettingsScreen(
         }
     }
 
+    }
     if (typingNumber) AddNumberDialog(onDismiss = { typingNumber = false })
     if (pickingContact) {
         val keys = numbers.orEmpty().map(::numberKey).toSet()
