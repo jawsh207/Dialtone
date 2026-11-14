@@ -106,6 +106,8 @@ fun DialerApp(
     onPendingConsumed: () -> Unit,
     openVoicemail: Boolean = false,
     onOpenVoicemailConsumed: () -> Unit = {},
+    openSettings: Boolean = false,
+    onOpenSettingsConsumed: () -> Unit = {},
     vm: DialerViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -131,6 +133,12 @@ fun DialerApp(
     // Keypad tab's dial pad: raised on arriving at the tab and by tapping Keypad again;
     // lowered by scrolling the Suggested list.
     var keypadPadShown by rememberSaveable { mutableStateOf(true) }
+    LaunchedEffect(openSettings) {
+        if (openSettings) {
+            voicemailSettingsOpen = true
+            onOpenSettingsConsumed()
+        }
+    }
     // Arriving on the Keypad tab (swipe or tap) always brings the dial pad up.
     LaunchedEffect(tab) { if (tab == Tab.Keypad) keypadPadShown = true }
     val showingContacts = contactsOpen && tab == Tab.Home

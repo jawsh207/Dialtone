@@ -1,5 +1,9 @@
 package app.dialtone.phone.ui.voicemail
 
+import android.telecom.TelecomManager
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Edit
+import app.dialtone.phone.telecom.QuickResponses
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.AlertDialog
@@ -233,6 +237,11 @@ fun VoicemailSettingsSheet(
             Spacer(Modifier.padding(top = 12.dp))
             SendToVoicemailCard(contactIndex)
 
+            Spacer(Modifier.padding(top = 24.dp))
+            Text("Calls", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.padding(top = 8.dp))
+            CallsSection()
+
             Spacer(Modifier.padding(top = 16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
@@ -430,6 +439,104 @@ private fun SendToVoicemailCard(contactIndex: Map<String, Contact>) {
                 picking = false
             },
             onDismiss = { picking = false },
+        )
+    }
+}
+
+/** Calls: links to Android's blocked numbers and calling accounts, and the quick responses. */
+@Composable
+private fun CallsSection() {
+    val context = LocalContext.current
+    var editing by rememberSaveable { mutableStateOf(false) }
+    val telecom = remember { context.getSystemService(TelecomManager::class.java) }
+
+    fun open(intent: Intent?) {
+        if (intent == null) return
+        runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            .onFailure { runCatching { context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
+    }
+
+    val rows = listOf(
+        Triple("Blocked numbers", "Calls and texts from these numbers are rejected") {
+            open(runCatching { telecom?.createManageBlockedNumbersIntent() }.getOrNull())
+        },
+        Triple("Calling accounts", "SIMs, call forwarding, call waiting and caller ID") {
+            open(Intent(TelecomManager.ACTION_CHANGE_PHONE_ACCOUNTS))
+        },
+        Triple("Quick responses", "Texts you can send when declining a call") { editing = true },
+    )
+    rows.forEachIndexed { i, (title, subtitle, onClick) ->
+        Surface(
+            onClick = onClick,
+            shape = segmentShape(i, rows.size),
+            color = MaterialTheme.colorScheme.surfaceBright,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
+        ) {
+            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(title, style = MaterialTheme.typography.titleMedium)
+                    Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+
+    if (editing) QuickResponsesEditor(onDismiss = { editing = false })
+}
+
+/** The four quick responses: tap one to edit it; blank restores its default. */
+@Composable
+private fun QuickResponsesEditor(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val scheme = MaterialTheme.colorScheme
+    val responses by QuickResponses.responses(context).collectAsState()
+    var editIndex by rememberSaveable { mutableStateOf<Int?>(null) }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.padding(horizontal = 20.dp).navigationBarsPadding().padding(bottom = 16.dp)) {
+            Text("Quick responses", style = MaterialTheme.typography.headlineSmall)
+            Text(
+                "Offered by \"Reply with message\" on an incoming call. Tap one to edit it.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = scheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
+            )
+            val list = responses.orEmpty()
+            list.forEachIndexed { i, text ->
+                Surface(
+                    onClick = { editIndex = i },
+                    shape = segmentShape(i, list.size),
+                    color = scheme.surfaceBright,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
+                ) {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        Icon(Icons.Rounded.Edit, "Edit", tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                    }
+                }
+            }
+            TextButton(onClick = { QuickResponses.resetAll(context) }, modifier = Modifier.padding(top = 8.dp)) {
+                Text("Reset to defaults")
+            }
+        }
+    }
+
+    editIndex?.let { i ->
+        var entry by rememberSaveable(i) { mutableStateOf(responses.orEmpty().getOrElse(i) { "" }) }
+        AlertDialog(
+            onDismissRequest = { editIndex = null },
+            title = { Text("Quick response") },
+            text = {
+                OutlinedTextField(value = entry, onValueChange = { entry = it }, modifier = Modifier.fillMaxWidth())
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    QuickResponses.set(context, i, entry)
+                    editIndex = null
+                }) { Text("Save") }
+            },
+            dismissButton = { TextButton(onClick = { editIndex = null }) { Text("Cancel") } },
         )
     }
 }

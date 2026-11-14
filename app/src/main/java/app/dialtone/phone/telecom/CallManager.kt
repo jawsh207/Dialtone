@@ -60,6 +60,9 @@ object CallManager {
 
     fun answer(call: Call) = call.answer(VideoProfile.STATE_AUDIO_ONLY)
     fun reject(call: Call) = call.reject(false, null)
+
+    /** Declines and texts [message] back (Telecom sends it via the default SMS app). */
+    fun rejectWithMessage(call: Call, message: String) = call.reject(true, message)
     fun hangup(call: Call) = call.disconnect()
 
     fun toggleHold(call: Call) {

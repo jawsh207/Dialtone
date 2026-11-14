@@ -3,6 +3,7 @@ package app.dialtone.phone
 import android.Manifest
 import android.app.role.RoleManager
 import android.content.Intent
+import android.telecom.TelecomManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -25,6 +26,7 @@ class MainActivity : ComponentActivity() {
     private var isDefault by mutableStateOf(false)
     private var pendingNumber by mutableStateOf<String?>(null)
     private var openVoicemail by mutableStateOf(false)
+    private var openSettings by mutableStateOf(false)
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -49,6 +51,7 @@ class MainActivity : ComponentActivity() {
         isDefault = Dialer.isDefaultDialer(this)
         pendingNumber = dialNumberFrom(intent)
         openVoicemail = intent.getBooleanExtra(VoicemailNotifier.EXTRA_OPEN_VOICEMAIL, false)
+        openSettings = wantsSettings(intent)
         if (isDefault) requestRuntimePermissions()
 
         setContent {
@@ -59,6 +62,8 @@ class MainActivity : ComponentActivity() {
                         onPendingConsumed = { pendingNumber = null },
                         openVoicemail = openVoicemail,
                         onOpenVoicemailConsumed = { openVoicemail = false },
+                        openSettings = openSettings,
+                        onOpenSettingsConsumed = { openSettings = false },
                     )
                 } else {
                     SetDefaultScreen(onRequest = ::requestDialerRole)
@@ -76,7 +81,12 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         pendingNumber = dialNumberFrom(intent)
         if (intent.getBooleanExtra(VoicemailNotifier.EXTRA_OPEN_VOICEMAIL, false)) openVoicemail = true
+        if (wantsSettings(intent)) openSettings = true
     }
+
+    private fun wantsSettings(intent: Intent?): Boolean =
+        intent?.action == TelecomManager.ACTION_SHOW_CALL_SETTINGS ||
+            intent?.action == TelecomManager.ACTION_SHOW_RESPOND_VIA_SMS_SETTINGS
 
     /** tel: number for DIAL/VIEW intents, "" for a bare DIAL, null otherwise. */
     private fun dialNumberFrom(intent: Intent?): String? {

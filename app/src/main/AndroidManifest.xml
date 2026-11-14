@@ -51,6 +51,12 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Android's links to the phone app's call settings and quick responses. -->
+            <intent-filter>
+                <action android:name="android.telecom.action.SHOW_CALL_SETTINGS" />
+                <action android:name="android.telecom.action.SHOW_RESPOND_VIA_SMS_SETTINGS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
             <!-- Both DIAL filters are required to qualify for ROLE_DIALER. -->
             <intent-filter>
                 <action android:name="android.intent.action.DIAL" />

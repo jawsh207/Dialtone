@@ -2,6 +2,14 @@
 
 package app.dialtone.phone.incall
 
+import androidx.compose.material.icons.automirrored.rounded.Message
+import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.collectAsState
+import app.dialtone.phone.telecom.QuickResponses
+import app.dialtone.phone.ui.components.segmentShape
 import android.annotation.SuppressLint
 import android.telecom.Call
 import android.telecom.CallAudioState
@@ -208,6 +216,8 @@ private fun InCallContent(call: Call, snap: CallSnapshot, audio: CallAudioState?
             Call.STATE_RINGING -> IncomingActions(
                 onAnswer = { CallManager.answer(call) },
                 onDecline = { CallManager.reject(call) },
+                // Texting back needs a number to text.
+                onReply = if (snap.number.isNotBlank()) ({ text: String -> CallManager.rejectWithMessage(call, text) }) else null,
             )
             Call.STATE_SELECT_PHONE_ACCOUNT -> {
                 SimPicker(call)
@@ -286,13 +296,75 @@ private fun CallerHalo(name: String?, photoUri: String?, seed: Long, animate: Bo
 }
 
 @Composable
-private fun IncomingActions(onAnswer: () -> Unit, onDecline: () -> Unit) {
+private fun IncomingActions(onAnswer: () -> Unit, onDecline: () -> Unit, onReply: ((String) -> Unit)?) {
     val pulse by rememberInfiniteTransition(label = "pulse").animateFloat(
         1f, 1.1f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "scale",
     )
-    Row(Modifier.fillMaxWidth().padding(bottom = 24.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-        RoundAction(Icons.Rounded.CallEnd, "Decline", MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.onError, 1f, onDecline)
-        RoundAction(Icons.Rounded.Call, "Answer", CallColors.container(), CallColors.content(), pulse, onAnswer)
+    var replying by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+            RoundAction(Icons.Rounded.CallEnd, "Decline", MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.onError, 1f, onDecline)
+            RoundAction(Icons.Rounded.Call, "Answer", CallColors.container(), CallColors.content(), pulse, onAnswer)
+        }
+        if (onReply != null) {
+            FilledTonalButton(onClick = { replying = true }, modifier = Modifier.padding(bottom = 24.dp)) {
+                Icon(Icons.AutoMirrored.Rounded.Message, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Reply with message")
+            }
+        } else {
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+    if (replying && onReply != null) {
+        QuickReplySheet(
+            onSend = { text ->
+                replying = false
+                onReply(text)
+            },
+            onDismiss = { replying = false },
+        )
+    }
+}
+
+/** Decline with a text: the quick responses, or one written now. */
+@Composable
+private fun QuickReplySheet(onSend: (String) -> Unit, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val scheme = MaterialTheme.colorScheme
+    val responses by QuickResponses.responses(context).collectAsState()
+    var custom by remember { mutableStateOf("") }
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = scheme.surfaceContainerLow) {
+        Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
+            Text(
+                "Decline and send",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(start = 8.dp, bottom = 12.dp),
+            )
+            val list = responses.orEmpty()
+            list.forEachIndexed { i, text ->
+                Surface(
+                    onClick = { onSend(text) },
+                    shape = segmentShape(i, list.size),
+                    color = scheme.surfaceBright,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
+                ) {
+                    Text(text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(16.dp))
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = custom,
+                onValueChange = { custom = it },
+                label = { Text("Write your own…") },
+                trailingIcon = {
+                    IconButton(enabled = custom.isNotBlank(), onClick = { onSend(custom.trim()) }) {
+                        Icon(Icons.AutoMirrored.Rounded.Send, "Send")
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 
