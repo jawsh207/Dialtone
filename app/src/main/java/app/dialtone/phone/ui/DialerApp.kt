@@ -83,6 +83,7 @@ import app.dialtone.phone.ui.contacts.ContactsScreen
 import app.dialtone.phone.ui.keypad.KeypadTab
 import app.dialtone.phone.ui.voicemail.VoicemailActions
 import app.dialtone.phone.ui.voicemail.VoicemailScreen
+import app.dialtone.phone.ui.voicemail.VoicemailSettingsSheet
 import app.dialtone.phone.voicemail.VoicemailNotifier
 import app.dialtone.phone.util.formatNumber
 import app.dialtone.phone.util.numberKey
@@ -218,15 +219,11 @@ fun DialerApp(
                     onActiveChange = { active -> query = if (active) "" else null },
                     // On the contacts list, a back arrow returns to Home.
                     onBack = if (showingContacts) ({ contactsOpen = false }) else null,
-                    // Voicemail settings live in the search bar while on the Voicemail tab.
-                    trailing = if (tab == Tab.Voicemail) {
-                        {
-                            IconButton(onClick = { voicemailSettingsOpen = true }) {
-                                Icon(Icons.Rounded.Settings, "Voicemail settings")
-                            }
+                    // Settings, in the search bar on every tab (and the contacts list).
+                    trailing = {
+                        IconButton(onClick = { voicemailSettingsOpen = true }) {
+                            Icon(Icons.Rounded.Settings, "Settings")
                         }
-                    } else {
-                        null
                     },
                 )
             },
@@ -306,14 +303,24 @@ fun DialerApp(
                             transcription = transcription,
                             actions = voicemailActions,
                             contentPadding = padding,
-                            showSettings = voicemailSettingsOpen,
                             onShowSettings = { voicemailSettingsOpen = true },
-                            onDismissSettings = { voicemailSettingsOpen = false },
                         )
                     }
                 }
             }
         }
+    }
+
+    // Opened from the gear in the search bar on any tab, so it lives above the pages.
+    if (voicemailSettingsOpen) {
+        VoicemailSettingsSheet(
+            accounts = vvmAccounts,
+            health = vvmHealth,
+            transcription = transcription,
+            contactIndex = contactIndex,
+            actions = voicemailActions,
+            onDismiss = { voicemailSettingsOpen = false },
+        )
     }
 }
 

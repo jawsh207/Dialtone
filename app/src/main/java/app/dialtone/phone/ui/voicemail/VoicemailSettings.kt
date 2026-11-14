@@ -182,8 +182,9 @@ fun VoicemailSettingsSheet(
                 .navigationBarsPadding()
                 .padding(bottom = 16.dp),
         ) {
-            Text("Visual voicemail", style = MaterialTheme.typography.headlineSmall)
-            Spacer(Modifier.padding(top = 4.dp))
+            Text("Settings", style = MaterialTheme.typography.headlineSmall)
+            Spacer(Modifier.padding(top = 16.dp))
+            Text("Visual voicemail", style = MaterialTheme.typography.titleMedium)
             Text(
                 "Downloads your messages and transcripts from your carrier over mobile data.",
                 style = MaterialTheme.typography.bodyMedium,

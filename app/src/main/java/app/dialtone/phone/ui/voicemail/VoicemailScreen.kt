@@ -93,9 +93,7 @@ fun VoicemailScreen(
     transcription: TranscriptionUi,
     actions: VoicemailActions,
     contentPadding: PaddingValues,
-    showSettings: Boolean,
     onShowSettings: () -> Unit,
-    onDismissSettings: () -> Unit,
 ) {
     val context = LocalContext.current
     val player = remember { VoicemailPlayer(context) }
@@ -198,16 +196,6 @@ fun VoicemailScreen(
         }
     }
 
-    if (showSettings) {
-        VoicemailSettingsSheet(
-            accounts = accounts,
-            health = health,
-            transcription = transcription,
-            contactIndex = contactIndex,
-            actions = actions,
-            onDismiss = onDismissSettings,
-        )
-    }
 }
 
 @Composable
