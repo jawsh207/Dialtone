@@ -6,6 +6,9 @@ modern Pixel dialer: dynamic color, shape-morphing buttons, expressive avatar sh
 
 ## What's in it
 
+New here? [How Dialtone works](docs/HOW-IT-WORKS.md) is a plain-language tour of what the
+app does and where each part lives in the code.
+
 - **Home** — favorites row (contacts you've starred, in expressive shapes) and recents grouped
   by Today / Yesterday / Older. Back-to-back calls collapse into one row with a count. Tap a row
   for Message / Add contact / Copy.

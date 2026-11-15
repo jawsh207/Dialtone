@@ -8,6 +8,16 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
+/**
+ * Android's link to Dialtone during calls. Because Dialtone is the default phone app, the
+ * system binds this service whenever a call starts and hands it every call (incoming,
+ * outgoing or on hold) until they all end.
+ *
+ * It passes each call to [CallManager], which tracks call state for the in-call screen, and
+ * keeps the call notification current. Outgoing calls open the in-call screen straight away;
+ * incoming calls ring through the full-screen call notification instead, which Android shows
+ * over the lock screen, or as a pop-up banner when the phone is in use.
+ */
 class DialtoneInCallService : InCallService() {
 
     private val scope = MainScope()

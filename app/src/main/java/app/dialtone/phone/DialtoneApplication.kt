@@ -8,6 +8,13 @@ import app.dialtone.phone.transcription.Transcription
 import app.dialtone.phone.voicemail.VoicemailNotifier
 import app.dialtone.phone.vvm.DialtoneVoicemail
 
+/**
+ * Runs once whenever Android starts Dialtone's process, before any screen, service or
+ * receiver. Dialtone is often started with no screen at all (an incoming call, a visual
+ * voicemail text from the carrier, a scheduled job), so everything those need is set up here:
+ * the visual voicemail engine, the call and voicemail notification channels, and the
+ * transcription job, plus a one-time repair of voicemail copies from older versions.
+ */
 class DialtoneApplication : Application() {
     override fun onCreate() {
         super.onCreate()

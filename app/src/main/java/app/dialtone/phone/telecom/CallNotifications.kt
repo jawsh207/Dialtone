@@ -17,6 +17,19 @@ import app.dialtone.phone.incall.InCallActivity
 import app.dialtone.phone.util.formatNumber
 import app.dialtone.phone.util.hasPermission
 
+/**
+ * The notification shown for calls; there is only ever one, updated as calls change.
+ *
+ *  - **Incoming call:** a high-priority "call style" notification with the caller's name,
+ *    Answer and Decline. Its full-screen intent shows the in-call screen over the lock screen.
+ *    It makes no sound itself: Android's call service plays the ringtone and vibration.
+ *  - **Ongoing call:** a quiet notification with the caller, a running call timer and Hang up,
+ *    so the call can be returned to from anywhere.
+ *  - **No calls:** removed.
+ *
+ * Two notification channels ("Incoming calls", "Ongoing calls") let the user adjust each one
+ * in Android's notification settings.
+ */
 object CallNotifications {
 
     private const val CHANNEL_INCOMING = "incoming_calls"

@@ -34,6 +34,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
+/**
+ * First-run screen, shown until Dialtone is the default phone app. Android only lets the
+ * default phone app place and answer calls through its own screens, read the call log and
+ * voicemail, and receive visual voicemail messages, so nothing else works until then.
+ * "Set as default" asks Android for the phone app role ([onRequest]); a spinning cookie shape
+ * behind the phone icon gives it some Material 3 Expressive motion.
+ */
 @Composable
 fun SetDefaultScreen(onRequest: () -> Unit) {
     val shape = MaterialShapes.Cookie12Sided.toShape()
