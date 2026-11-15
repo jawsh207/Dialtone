@@ -117,6 +117,23 @@ jobs:
           # Unit tests first: a failing test stops the build, so no APK is published.
           ./gradlew --stacktrace testDebugUnitTest assembleRelease 2>&1 | tee build.log
 
+      - name: Report unit tests
+        if: always()
+        shell: bash
+        run: |
+          # One line on the run page: how many unit tests ran and failed.
+          python3 - <<'PYEOF'
+          import glob, xml.etree.ElementTree as ET
+          files = glob.glob("app/build/test-results/testDebugUnitTest/*.xml")
+          total = failed = 0
+          for f in files:
+              r = ET.parse(f).getroot()
+              total += int(r.get("tests", 0)); failed += int(r.get("failures", 0)) + int(r.get("errors", 0))
+          if files:
+              level = "error" if failed else "notice"
+              print(f"::{level} title=Unit tests::{total - failed} of {total} passed")
+          PYEOF
+
       - name: Report build errors
         if: failure()
         shell: bash
