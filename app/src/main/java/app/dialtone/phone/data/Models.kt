@@ -25,6 +25,8 @@ data class RecentCall(
     val durationSec: Long,
     /** Consecutive calls with the same number and type are collapsed into one row. */
     val count: Int = 1,
+    /** Call log ids of every call in this row (newest first), so Delete removes them all. */
+    val ids: List<Long> = listOf(id),
 )
 
 data class Voicemail(

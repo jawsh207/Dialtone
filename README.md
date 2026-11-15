@@ -10,22 +10,27 @@ New here? [How Dialtone works](docs/HOW-IT-WORKS.md) is a plain-language tour of
 app does and where each part lives in the code.
 Working on the code? See [CONTRIBUTING.md](CONTRIBUTING.md) for how changes are documented.
 
-- **Home** — favorites row (contacts you've starred, in expressive shapes) and recents grouped
-  by Today / Yesterday / Older. Back-to-back calls collapse into one row with a count. Tap a row
-  for Message / Add contact / Copy.
-- **Keypad** — pill keys that morph on press, DTMF feedback tones (respects the system setting),
-  haptics, T9 contact suggestions, long-press **0** for `+`, long-press **1** for voicemail,
-  long-press backspace to clear, call button redials your last number when empty.
-- **Contacts** — alphabetical, expandable to every number, plus search from the top bar.
-- **Voicemail** — built-in visual voicemail (see below): inbox with unread badge, carrier
-  transcripts, playback with a wavy progress bar (tap to seek), call back, message, delete,
-  new-voicemail notifications, and a settings sheet with per-SIM on/off, Sync now and an
-  on-device diagnostics log.
-- **In-call screen** — works over the lock screen; rotating cookie halo while connecting,
-  morphing toggles for Mute / Keypad (DTMF) / Speaker / Hold, big end-call button, proximity
-  screen-off, and a SIM picker for dual-SIM phones with no default.
-- **Incoming calls** — full-screen `CallStyle` notification with Answer / Decline; an ongoing
-  call notification with Hang up while you're elsewhere.
+- **Home** — call log filters (All, Missed, Dialed, Contacts, Unknown), a collapsible Favorites
+  row (expressive shapes; **+ Add** at the end, long-press a favorite to remove it), a Contacts
+  button, and recents grouped by Today / Yesterday / Older. Back-to-back calls collapse into one
+  row. Tap a call for Message / Add contact / Copy; long-press it for Send to voicemail, Block,
+  Copy number, Add to contacts and Delete.
+- **Keypad** — the dial pad slides up over Suggested contacts (people you call most, then
+  favorites); scrolling lowers it, tapping Keypad raises it. DTMF tones, haptics, T9 matching,
+  long-press **0** for `+`, **1** for voicemail, backspace to clear; Call redials when empty.
+- **Contacts** (from Home) — Favorites section, A–Z list with a quick-scroll strip, call and text
+  buttons, Add to / Remove from Favorites, Send to voicemail.
+- **Voicemail** — built-in visual voicemail (see below): inbox, carrier transcripts (or your
+  speech-to-text app's), playback with a wavy progress bar, call back, message, delete, and
+  new-voicemail notifications.
+- **In-call screen** — works over the lock screen: Mute, Keypad (DTMF), Audio (earpiece, speaker,
+  wired headset or a Bluetooth device), Hold, Add call. Call waiting offers Hold & answer, End &
+  answer or Decline; a held call shows with Swap, and Merge when the network allows a conference.
+  Reply with message declines with a text. SIM picker for dual-SIM phones with no default.
+- **Notifications** — full-screen incoming calls (Answer / Decline), an ongoing call with Hang up,
+  missed calls with Call back / Message, and new voicemail.
+- **Settings** — visual voicemail per SIM, transcription, Send to voicemail, blocked numbers,
+  calling accounts, quick responses, and the voicemail log.
 
 ## Build & install
 
@@ -147,10 +152,13 @@ possible without carrier or system privileges.
 ```
 app/src/main/java/app/dialtone/phone/
   MainActivity.kt              default-dialer onboarding, DIAL intents, permissions
-  telecom/                     InCallService, call state, notifications, helpers
+  telecom/                     InCallService, call state, call and missed-call notifications
+  screening/                   Send to voicemail (call screening) and the system block list
+  transcription/               voicemail transcription through the speech-to-text app
   incall/                      in-call activity and screen
   data/                        contacts, call log, voicemail repositories
-  ui/                          app shell, tabs, keypad, voicemail, theme, shared components
+  ui/                          app shell, tabs, keypad, contacts, voicemail, settings, theme
+app/src/test/java/…            unit tests (number matching, duplicates, call log grouping, filters)
   voicemail/                   voicemail notifications (new message, message-waiting, boot)
   vvm/                         visual voicemail engine (Java, ported from AOSP Dialer)
     DialtoneVoicemail.java     the app's entry points into the engine

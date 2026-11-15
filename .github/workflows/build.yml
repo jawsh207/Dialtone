@@ -104,9 +104,9 @@ jobs:
           echo "${{ secrets.DIALTONE_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/dialtone.jks"
           echo "DIALTONE_KEYSTORE_FILE=$RUNNER_TEMP/dialtone.jks" >> "$GITHUB_ENV"
 
-      # Optimized (R8, non-debuggable) release build. Without the signing secrets it still
-      # compiles, so code errors show up, but no APK is published.
-      - name: Build release APK
+      # Unit tests, then the optimized (R8, non-debuggable) release build. Without the signing
+      # secrets it still compiles, so code errors show up, but no APK is published.
+      - name: Test and build release APK
         shell: bash
         env:
           DIALTONE_KEYSTORE_PASSWORD: ${{ secrets.DIALTONE_KEYSTORE_PASSWORD }}
@@ -114,7 +114,8 @@ jobs:
           DIALTONE_KEY_PASSWORD: ${{ secrets.DIALTONE_KEY_PASSWORD }}
         run: |
           set -o pipefail
-          ./gradlew --stacktrace assembleRelease 2>&1 | tee build.log
+          # Unit tests first: a failing test stops the build, so no APK is published.
+          ./gradlew --stacktrace testReleaseUnitTest assembleRelease 2>&1 | tee build.log
 
       - name: Report build errors
         if: failure()
@@ -128,7 +129,7 @@ jobs:
           lines = open("build.log", errors="replace").read().splitlines()
           picked = []
           for i, line in enumerate(lines):
-              if re.match(r"^(e: |w: .*error)|.*error:|^\* What went wrong|^FAILURE|Could not resolve|> |^ERROR:|Missing class", line):
+              if re.match(r"^(e: |w: .*error)|.*error:|^\* What went wrong|^FAILURE|Could not resolve|> |^ERROR:|Missing class| FAILED$|AssertionError|expected:<", line):
                   picked.extend(lines[i:i + (120 if line.startswith("* What went wrong") else 1)])
           seen, uniq = set(), []
           for l in picked:

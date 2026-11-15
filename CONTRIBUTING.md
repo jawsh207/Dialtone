@@ -21,6 +21,12 @@ Every change keeps the code readable by someone who didn't write it.
 - The visual voicemail engine in `vvm/` is Google's AOSP code. Keep its comments, and keep
   changes there small and commented, so upstream fixes can still be copied across.
 
+## Tests
+
+Unit tests live in `app/src/test/` and run on every build (`./gradlew testReleaseUnitTest`);
+a failing test stops the APK from being built. Add or update tests when changing logic that
+can be checked without a phone (matching, grouping, filtering, parsing).
+
 ## Commits
 
 - Commit messages: a short summary line, then a few lines on what changed and why.

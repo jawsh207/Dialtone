@@ -4,6 +4,7 @@ import app.dialtone.phone.data.VoicemailRestore
 import android.app.Application
 import app.dialtone.phone.vvm.compat.PersistentLogger
 import app.dialtone.phone.telecom.CallNotifications
+import app.dialtone.phone.telecom.MissedCalls
 import app.dialtone.phone.transcription.Transcription
 import app.dialtone.phone.voicemail.VoicemailNotifier
 import app.dialtone.phone.vvm.DialtoneVoicemail
@@ -12,7 +13,7 @@ import app.dialtone.phone.vvm.DialtoneVoicemail
  * Runs once whenever Android starts Dialtone's process, before any screen, service or
  * receiver. Dialtone is often started with no screen at all (an incoming call, a visual
  * voicemail text from the carrier, a scheduled job), so everything those need is set up here:
- * the visual voicemail engine, the call and voicemail notification channels, and the
+ * the visual voicemail engine, the call, missed-call and voicemail notification channels, and the
  * transcription job, plus a one-time repair of voicemail copies from older versions.
  */
 class DialtoneApplication : Application() {
@@ -28,6 +29,7 @@ class DialtoneApplication : Application() {
         DialtoneVoicemail.init(this)
         CallNotifications.ensureChannels(this)
         VoicemailNotifier.ensureChannel(this)
+        MissedCalls.ensureChannel(this)
         // Re-arm the transcription watcher (content-trigger jobs don't survive a reboot or
         // force-stop). Off the main thread: it asks the package manager about recognizers.
         Thread {

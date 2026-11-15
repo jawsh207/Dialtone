@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.role.RoleManager
 import android.content.Intent
 import android.telecom.TelecomManager
+import app.dialtone.phone.telecom.MissedCalls
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -26,6 +27,7 @@ class MainActivity : ComponentActivity() {
     private var isDefault by mutableStateOf(false)
     private var pendingNumber by mutableStateOf<String?>(null)
     private var openVoicemail by mutableStateOf(false)
+    private var openCallLog by mutableStateOf(false)
     private var openSettings by mutableStateOf(false)
 
     private val permissionLauncher =
@@ -51,6 +53,7 @@ class MainActivity : ComponentActivity() {
         isDefault = Dialer.isDefaultDialer(this)
         pendingNumber = dialNumberFrom(intent)
         openVoicemail = intent.getBooleanExtra(VoicemailNotifier.EXTRA_OPEN_VOICEMAIL, false)
+        openCallLog = intent.getBooleanExtra(MissedCalls.EXTRA_OPEN_CALL_LOG, false)
         openSettings = wantsSettings(intent)
         if (isDefault) requestRuntimePermissions()
 
@@ -62,6 +65,8 @@ class MainActivity : ComponentActivity() {
                         onPendingConsumed = { pendingNumber = null },
                         openVoicemail = openVoicemail,
                         onOpenVoicemailConsumed = { openVoicemail = false },
+                        openCallLog = openCallLog,
+                        onOpenCallLogConsumed = { openCallLog = false },
                         openSettings = openSettings,
                         onOpenSettingsConsumed = { openSettings = false },
                     )
@@ -81,6 +86,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         pendingNumber = dialNumberFrom(intent)
         if (intent.getBooleanExtra(VoicemailNotifier.EXTRA_OPEN_VOICEMAIL, false)) openVoicemail = true
+        if (intent.getBooleanExtra(MissedCalls.EXTRA_OPEN_CALL_LOG, false)) openCallLog = true
         if (wantsSettings(intent)) openSettings = true
     }
 

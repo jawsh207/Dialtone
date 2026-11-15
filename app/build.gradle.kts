@@ -47,6 +47,12 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    // Unit tests run on the plain JVM: Android framework calls return defaults instead of
+    // throwing, so code that touches them (e.g. date helpers) can still be loaded.
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
     buildFeatures {
         compose = true
     }
@@ -88,4 +94,6 @@ dependencies {
     implementation(libs.apache.mime4j.core)
     implementation(libs.apache.mime4j.dom)
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    testImplementation(libs.junit)
 }

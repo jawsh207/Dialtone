@@ -9,6 +9,11 @@ import app.dialtone.phone.util.numberKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/**
+ * Reads the phone's call log (Android keeps it; Dialtone, as the phone app, can read and edit
+ * it) into rows for the Home tab, newest first, merging back-to-back calls from the same
+ * number into one row the way the stock dialer does.
+ */
 class CallLogRepository(private val context: Context) {
 
     suspend fun load(limit: Int = 300): List<RecentCall> = withContext(Dispatchers.IO) {
@@ -43,24 +48,39 @@ class CallLogRepository(private val context: Context) {
                 }
             }
         }
-        collapse(raw)
+        collapseCalls(raw)
     }
 
-    /** Group back-to-back calls (same number, same type, same day) like the stock dialer. */
-    private fun collapse(calls: List<RecentCall>): List<RecentCall> {
-        val out = mutableListOf<RecentCall>()
-        for (call in calls) {
-            val last = out.lastOrNull()
-            if (last != null &&
-                numberKey(last.number) == numberKey(call.number) &&
-                last.type == call.type &&
-                dayBucket(last.date) == dayBucket(call.date)
-            ) {
-                out[out.lastIndex] = last.copy(count = last.count + 1)
-            } else {
-                out += call
-            }
+}
+
+/** Group back-to-back calls (same number, same type, same day) like the stock dialer. */
+internal fun collapseCalls(calls: List<RecentCall>): List<RecentCall> {
+    val out = mutableListOf<RecentCall>()
+    for (call in calls) {
+        val last = out.lastOrNull()
+        if (last != null &&
+            numberKey(last.number) == numberKey(call.number) &&
+            last.type == call.type &&
+            dayBucket(last.date) == dayBucket(call.date)
+        ) {
+            out[out.lastIndex] = last.copy(count = last.count + 1, ids = last.ids + call.id)
+        } else {
+            out += call
         }
-        return out
+    }
+    return out
+}
+
+/** Removes calls from the system call log (the list refreshes itself when it changes). */
+object CallLogEdits {
+    fun delete(context: Context, ids: List<Long>) {
+        if (ids.isEmpty() || !context.hasPermission(Manifest.permission.WRITE_CALL_LOG)) return
+        runCatching {
+            context.contentResolver.delete(
+                Calls.CONTENT_URI,
+                "${Calls._ID} IN (${ids.joinToString(",") { "?" }})",
+                ids.map { it.toString() }.toTypedArray(),
+            )
+        }
     }
 }

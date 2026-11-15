@@ -110,6 +110,8 @@ fun DialerApp(
     onOpenVoicemailConsumed: () -> Unit = {},
     openSettings: Boolean = false,
     onOpenSettingsConsumed: () -> Unit = {},
+    openCallLog: Boolean = false,
+    onOpenCallLogConsumed: () -> Unit = {},
     vm: DialerViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -135,6 +137,16 @@ fun DialerApp(
     // Keypad tab's dial pad: raised on arriving at the tab and by tapping Keypad again;
     // lowered by scrolling the Suggested list.
     var keypadPadShown by rememberSaveable { mutableStateOf(true) }
+    // Missed-call notification: show the call log (Home).
+    LaunchedEffect(openCallLog) {
+        if (openCallLog) {
+            query = null
+            contactsOpen = false
+            voicemailSettingsOpen = false
+            pager.scrollToPage(Tab.Home.ordinal)
+            onOpenCallLogConsumed()
+        }
+    }
     LaunchedEffect(openSettings) {
         if (openSettings) {
             voicemailSettingsOpen = true
@@ -289,6 +301,7 @@ fun DialerApp(
                                     onCall = call,
                                     onOpenContacts = { contactsOpen = true },
                                     onAddFavorite = vm::addFavorite,
+                                    onRemoveFavorite = { id -> vm.setFavorite(id, false) },
                                     contentPadding = padding,
                                 )
                             }

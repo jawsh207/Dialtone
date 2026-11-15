@@ -1,5 +1,18 @@
 package app.dialtone.phone.ui.home
 
+import androidx.compose.material.icons.rounded.StarOutline
+import android.widget.Toast
+import androidx.compose.material.icons.outlined.Block
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.runtime.produceState
+import app.dialtone.phone.data.CallLogEdits
+import app.dialtone.phone.screening.Blocking
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import app.dialtone.phone.telecom.MissedCalls
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Call
 import android.view.HapticFeedbackConstants
@@ -98,7 +111,7 @@ import app.dialtone.phone.util.formatShortDate
 import app.dialtone.phone.util.numberKey
 
 /** Call log filters shown above Favorites. */
-private enum class CallFilter(val label: String, val empty: String) {
+internal enum class CallFilter(val label: String, val empty: String) {
     All("All", "No recent calls"),
     Missed("Missed", "No missed calls"),
     Dialed("Dialed", "No dialed calls"),
@@ -106,7 +119,7 @@ private enum class CallFilter(val label: String, val empty: String) {
     Unknown("Unknown", "No calls from unsaved numbers"),
 }
 
-private fun CallFilter.matches(call: RecentCall, contact: Contact?): Boolean = when (this) {
+internal fun CallFilter.matches(call: RecentCall, contact: Contact?): Boolean = when (this) {
     CallFilter.All -> true
     CallFilter.Missed -> call.type == CallType.Missed
     CallFilter.Dialed -> call.type == CallType.Outgoing
@@ -123,19 +136,40 @@ fun HomeScreen(
     onCall: (String) -> Unit,
     onOpenContacts: () -> Unit,
     onAddFavorite: (Long) -> Unit,
+    onRemoveFavorite: (Long) -> Unit,
     contentPadding: PaddingValues,
 ) {
     val context = LocalContext.current
     var pickingFavorite by rememberSaveable { mutableStateOf(false) }
+    // Seeing the call log counts as seeing missed calls: clear their notification.
+    LifecycleResumeEffect(Unit) {
+        val app = context.applicationContext
+        Thread { MissedCalls.markSeen(app) }.start()
+        onPauseOrDispose { }
+    }
     val voicemailNumbers by SendToVoicemail.numbers(context).collectAsState()
     val voicemailKeys = remember(voicemailNumbers) { voicemailNumbers.orEmpty().map(::numberKey).toSet() }
     // Starring a contact needs WRITE_CONTACTS (same group as READ_CONTACTS, so usually no prompt).
+    // A favorite waiting to be removed while the permission is asked for (null: adding).
+    var pendingRemoval by remember { mutableStateOf<Long?>(null) }
     val writePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) pickingFavorite = true
+        val removing = pendingRemoval
+        pendingRemoval = null
+        if (granted) {
+            if (removing != null) onRemoveFavorite(removing) else pickingFavorite = true
+        }
     }
     val addFavorite = {
         if (context.hasPermission(Manifest.permission.WRITE_CONTACTS)) pickingFavorite = true
         else writePermission.launch(Manifest.permission.WRITE_CONTACTS)
+    }
+    val removeFavorite = { id: Long ->
+        if (context.hasPermission(Manifest.permission.WRITE_CONTACTS)) {
+            onRemoveFavorite(id)
+        } else {
+            pendingRemoval = id
+            writePermission.launch(Manifest.permission.WRITE_CONTACTS)
+        }
     }
     val prefs = remember { context.getSharedPreferences("home", Context.MODE_PRIVATE) }
     // Remembered across launches: hidden favorites stay hidden.
@@ -228,7 +262,11 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(favorites, key = { it.id }) { contact ->
-                        FavoriteTile(contact) { contact.numbers.firstOrNull()?.let { onCall(it.number) } }
+                        FavoriteTile(
+                            contact,
+                            onClick = { contact.numbers.firstOrNull()?.let { onCall(it.number) } },
+                            onRemove = { removeFavorite(contact.id) },
+                        )
                     }
                     // Always last, after the favorites (or alone when there are none).
                     item(key = "add") { AddFavoriteTile(onClick = addFavorite) }
@@ -302,9 +340,23 @@ private fun AddFavoriteTile(onClick: () -> Unit) {
 }
 
 @Composable
-private fun FavoriteTile(contact: Contact, onClick: () -> Unit) {
+private fun FavoriteTile(contact: Contact, onClick: () -> Unit, onRemove: () -> Unit) {
+    val view = LocalView.current
+    var menu by remember { mutableStateOf(false) }
+    Box {
+    // Tap calls; long-press offers to remove the favorite.
     Column(
-        Modifier.width(84.dp).clip(RoundedCornerShape(20.dp)).clickable(onClick = onClick).padding(vertical = 8.dp),
+        Modifier
+            .width(84.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = {
+                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                    menu = true
+                },
+            )
+            .padding(vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Avatar(contact.name, contact.photoUri, contact.id, size = 68.dp, expressive = true)
@@ -316,6 +368,17 @@ private fun FavoriteTile(contact: Contact, onClick: () -> Unit) {
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
         )
+    }
+    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+        DropdownMenuItem(
+            text = { Text("Remove from Favorites") },
+            leadingIcon = { Icon(Icons.Rounded.StarOutline, null) },
+            onClick = {
+                menu = false
+                onRemove()
+            },
+        )
+    }
     }
 }
 
@@ -431,6 +494,11 @@ private fun RecentRow(
             }
         }
     }
+    // Long-press menu. Whether the number is blocked is looked up each time it opens.
+    val blocked by produceState<Boolean?>(null, menu, call.number) {
+        value = if (menu) withContext(Dispatchers.IO) { Blocking.isBlocked(context, call.number) } else null
+    }
+    val canBlock = remember { Blocking.canBlock(context) }
     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
         DropdownMenuItem(
             text = { Text(if (sentToVoicemail) "Stop sending to voicemail" else "Send to voicemail") },
@@ -438,6 +506,47 @@ private fun RecentRow(
             onClick = {
                 menu = false
                 onSetSendToVoicemail(!sentToVoicemail)
+            },
+        )
+        if (canBlock) {
+            val isBlocked = blocked == true
+            DropdownMenuItem(
+                text = { Text(if (isBlocked) "Unblock" else "Block") },
+                leadingIcon = { Icon(Icons.Outlined.Block, null) },
+                enabled = blocked != null,
+                onClick = {
+                    menu = false
+                    val app = context.applicationContext
+                    Thread { if (isBlocked) Blocking.unblock(app, call.number) else Blocking.block(app, call.number) }.start()
+                    Toast.makeText(context, if (isBlocked) "Unblocked" else "Blocked", Toast.LENGTH_SHORT).show()
+                },
+            )
+        }
+        DropdownMenuItem(
+            text = { Text("Copy number") },
+            leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
+            onClick = {
+                menu = false
+                Dialer.copy(context, call.number)
+            },
+        )
+        if (contact == null) {
+            DropdownMenuItem(
+                text = { Text("Add to contacts") },
+                leadingIcon = { Icon(Icons.Outlined.PersonAdd, null) },
+                onClick = {
+                    menu = false
+                    Dialer.addContact(context, call.number)
+                },
+            )
+        }
+        DropdownMenuItem(
+            text = { Text(if (call.ids.size > 1) "Delete ${call.ids.size} calls" else "Delete from call log") },
+            leadingIcon = { Icon(Icons.Outlined.Delete, null) },
+            onClick = {
+                menu = false
+                val app = context.applicationContext
+                Thread { CallLogEdits.delete(app, call.ids) }.start()
             },
         )
     }

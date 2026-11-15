@@ -44,15 +44,33 @@ by itself.
   (`telecom/Dialer.kt`).
 - **During a call:** Android connects to Dialtone's in-call service
   (`telecom/DialtoneInCallService.kt`) and passes it every call. `telecom/CallManager.kt` keeps
-  track of them (ringing, active, on hold) for the in-call screen, which offers
-  mute, speaker, keypad, hold and hang up.
+  track of them (ringing, active, on hold) for the in-call screen (`incall/InCallScreen.kt`),
+  which offers mute, keypad, audio, hold, add call and hang up.
+- **Audio:** with only the phone's earpiece and speaker, the button is a simple Speaker switch.
+  With a wired headset or Bluetooth device connected it becomes **Audio**, listing every place
+  the call can play, so switching the speaker off never drops your headset.
+- **Two calls at once:** if someone calls while you're on a call, you can **Hold & answer**,
+  **End & answer** or **Decline**. A call on hold shows in a card with **Swap**, and **Merge**
+  when the network allows joining them into a conference call. **Add call** opens the keypad to
+  call someone else; Android puts the first call on hold for you.
 - **Incoming calls** ring through a full-screen notification that shows over the lock screen
   (`telecom/CallNotifications.kt`). Answer opens the in-call screen; Decline and Hang up are
   handled without opening the app (`telecom/CallActionReceiver.kt`).
 - **Reply with message:** on an incoming call you can decline and text back one of your
   quick responses (`telecom/QuickResponses.kt`). Android sends the text through your default
   messaging app, so Dialtone needs no texting permission for it.
+- **Missed calls** get Dialtone's own notification, with Call back and Message
+  (`telecom/MissedCalls.kt`). It clears once you open the Home tab, dismiss it, or call back.
 - **Caller names** come from your contacts (`telecom/CallerLookup.kt`).
+
+## The call log
+
+The Home tab shows Android's call log (`data/CallLogRepository.kt`), with back-to-back calls
+from the same person grouped into one row. Long-press a call to send that number to voicemail,
+block it, copy it, add it to your contacts, or delete it from the call log (a grouped row
+deletes all its calls). Blocking uses Android's own block list (`screening/Blocking.kt`), the
+same one as Settings › Blocked numbers: blocked callers are rejected outright and don't reach
+voicemail. Favorites are added with the **+ Add** button and removed by long-pressing them.
 
 ## Send to voicemail
 
@@ -134,6 +152,8 @@ It deliberately has no microphone permission of its own, so it can't record anyt
 
 ## Building and releasing
 
-GitHub builds Dialtone automatically. Every change produces a signed test build, and a
-release is made by adding release notes or using the **Build release** button under Actions.
-See the README for details.
+GitHub builds Dialtone automatically. Every change first runs the automated tests
+(`app/src/test/`), which check things like matching one phone number written different ways,
+spotting duplicate voicemails, grouping the call log and the call log filters. If a test fails,
+no app is built. Then it produces a signed test build. A release is made by adding release
+notes or using the **Build release** button under Actions. See the README for details.

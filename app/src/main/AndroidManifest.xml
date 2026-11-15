@@ -98,6 +98,14 @@
         <receiver
             android:name=".telecom.CallActionReceiver"
             android:exported="false" />
+        <!-- Missed calls: Android asks the default phone app to show the notification. -->
+        <receiver
+            android:name=".telecom.MissedCallReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.telecom.action.SHOW_MISSED_CALLS_NOTIFICATION" />
+            </intent-filter>
+        </receiver>
         <!-- ===== Voicemail notifications ===== -->
         <receiver
             android:name=".voicemail.NewVoicemailReceiver"
