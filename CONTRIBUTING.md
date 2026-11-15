@@ -23,7 +23,7 @@ Every change keeps the code readable by someone who didn't write it.
 
 ## Tests
 
-Unit tests live in `app/src/test/` and run on every build (`./gradlew testReleaseUnitTest`);
+Unit tests live in `app/src/test/` and run on every build (`./gradlew testDebugUnitTest`);
 a failing test stops the APK from being built. Add or update tests when changing logic that
 can be checked without a phone (matching, grouping, filtering, parsing).
 

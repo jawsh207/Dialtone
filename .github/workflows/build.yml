@@ -115,7 +115,7 @@ jobs:
         run: |
           set -o pipefail
           # Unit tests first: a failing test stops the build, so no APK is published.
-          ./gradlew --stacktrace testReleaseUnitTest assembleRelease 2>&1 | tee build.log
+          ./gradlew --stacktrace testDebugUnitTest assembleRelease 2>&1 | tee build.log
 
       - name: Report build errors
         if: failure()
