@@ -36,6 +36,13 @@ object Dialer {
         context.getSystemService(TelecomManager::class.java)?.placeCall(uri, Bundle())
     }
 
+    /**
+     * Opens Dialtone's keypad to place a second call during a call ("Add call"); Telecom puts
+     * the current call on hold when the new one is placed.
+     */
+    fun addCallIntent(context: Context): Intent =
+        Intent(Intent.ACTION_DIAL).setPackage(context.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
     fun sms(context: Context, number: String) = safeStart(
         context, Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:${Uri.encode(number)}")),
     )
