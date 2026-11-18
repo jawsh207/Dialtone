@@ -20,6 +20,9 @@ import app.dialtone.phone.util.hasPermission
 /**
  * The notification shown for calls; there is only ever one, updated as calls change.
  *
+ * Each kind has its own status bar icon: ringing handset (incoming), handset (ongoing),
+ * paused handset (on hold); missed calls use a handset with a missed arrow ([MissedCalls]).
+ *
  *  - **Incoming call:** a high-priority "call style" notification with the caller's name,
  *    Answer and Decline. Its full-screen intent shows the in-call screen over the lock screen.
  *    It makes no sound itself: Android's call service plays the ringtone and vibration.
@@ -73,7 +76,7 @@ object CallNotifications {
     }
 
     private fun incoming(context: Context, call: Call) = NotificationCompat.Builder(context, CHANNEL_INCOMING)
-        .setSmallIcon(R.drawable.ic_stat_call)
+        .setSmallIcon(R.drawable.ic_stat_call_incoming)
         .setCategory(NotificationCompat.CATEGORY_CALL)
         .setPriority(NotificationCompat.PRIORITY_MAX)
         .setOngoing(true)
@@ -99,7 +102,8 @@ object CallNotifications {
             else -> "Calling…"
         }
         return NotificationCompat.Builder(context, CHANNEL_ONGOING)
-            .setSmallIcon(R.drawable.ic_stat_call)
+            // Each kind of call notification has its own status bar icon.
+            .setSmallIcon(if (call.stateCompat == Call.STATE_HOLDING) R.drawable.ic_stat_call_held else R.drawable.ic_stat_call)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setContentTitle(callerName(context, call))
             .setContentText(status)

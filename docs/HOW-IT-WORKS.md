@@ -61,6 +61,10 @@ by itself.
   messaging app, so Dialtone needs no texting permission for it.
 - **Missed calls** get Dialtone's own notification, with Call back and Message
   (`telecom/MissedCalls.kt`). It clears once you open the Home tab, dismiss it, or call back.
+- **Notification icons** tell the notifications apart in the status bar: a ringing handset for
+  an incoming call, a plain handset during a call, a paused handset when it's on hold, a
+  handset with a missed arrow for missed calls, and the voicemail symbol for voicemail
+  (`res/drawable/ic_stat_*.xml`).
 - **Caller names** come from your contacts (`telecom/CallerLookup.kt`).
 
 ## The call log

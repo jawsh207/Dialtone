@@ -88,7 +88,7 @@ object MissedCalls {
 
         val byCaller = calls.groupBy { numberKey(it.number).ifEmpty { "?" } }
         val builder = NotificationCompat.Builder(context, CHANNEL)
-            .setSmallIcon(R.drawable.ic_stat_call)
+            .setSmallIcon(R.drawable.ic_stat_call_missed)
             .setCategory(NotificationCompat.CATEGORY_MISSED_CALL)
             .setWhen(calls.first().date)
             .setShowWhen(true)

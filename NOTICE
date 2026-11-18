@@ -17,6 +17,10 @@ on-device diagnostics log was added.
 
 This product depends on Apache James Mime4j (Apache License 2.0).
 
+Notification icons (app/src/main/res/drawable/ic_stat_*.xml) are Material Icons
+(https://github.com/google/material-design-icons), Copyright Google LLC,
+Licensed under the Apache License, Version 2.0.
+
 Google Sans Flex (app/src/main/res/font/google_sans_flex.ttf)
 Copyright 2015 The Google Sans Flex Authors (https://github.com/googlefonts/googlesans-flex)
 Licensed under the SIL Open Font License, Version 1.1. The full license ships inside the app
