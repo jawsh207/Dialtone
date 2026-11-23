@@ -65,6 +65,10 @@ by itself.
   an incoming call, a plain handset during a call, a paused handset when it's on hold, a
   handset with a missed arrow for missed calls, and the voicemail symbol for voicemail
   (`res/drawable/ic_stat_*.xml`).
+- **Notification groups:** missed calls and voicemail are kept in separate groups
+  (`util/NotificationGroups.kt`). Without this, Android bundles an app's notifications together
+  under the app's own icon, so a missed call and a voicemail would sit together under a plain
+  handset.
 - **Caller names** come from your contacts (`telecom/CallerLookup.kt`).
 
 ## The call log

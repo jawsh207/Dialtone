@@ -1,5 +1,6 @@
 package app.dialtone.phone.voicemail
 
+import app.dialtone.phone.util.NotificationGroups
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
@@ -24,12 +25,15 @@ import app.dialtone.phone.util.hasPermission
  *  - visual voicemail: one notification summarizing new, unread messages in the voicemail store
  *  - message-waiting (MWI): the carrier's basic "you have voicemail" signal, shown when visual
  *    voicemail isn't active for that SIM
+ * Both sit in Dialtone's voicemail notification group ([NotificationGroups]), so Android never
+ * bundles them with missed calls.
  */
 object VoicemailNotifier {
 
     private const val CHANNEL = "voicemail"
     private const val ID_VISUAL = 100
     private const val ID_MWI = 101
+    private const val ID_SUMMARY = 102
     private const val PREFS = "voicemail_notifier"
     private const val KEY_LAST_NOTIFIED = "last_notified_date"
 
@@ -107,19 +111,31 @@ object VoicemailNotifier {
             // Only buzz for messages we haven't announced yet.
             .setOnlyAlertOnce(!hasNew)
             .setContentIntent(openVoicemailTab(context))
+            // Its own group, so Android doesn't bundle it with missed calls under the app icon.
+            .setGroup(NotificationGroups.VOICEMAIL)
+            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
         if (unread.size == 1 && newest.number.isNotBlank()) {
             builder.addAction(0, "Call back", callIntent(context, Uri.fromParts("tel", newest.number, null), 1))
         }
         NotificationManagerCompat.from(context).notify(ID_VISUAL, builder.build())
+        postSummary(context, title, openVoicemailTab(context))
     }
 
-    fun cancelVisual(context: Context) = NotificationManagerCompat.from(context).cancel(ID_VISUAL)
+    fun cancelVisual(context: Context) {
+        NotificationManagerCompat.from(context).cancel(ID_VISUAL)
+        NotificationGroups.cancelSummaryIfEmpty(context, NotificationGroups.VOICEMAIL, ID_SUMMARY)
+    }
+
+    private fun postSummary(context: Context, title: String, open: PendingIntent) = NotificationGroups.postSummary(
+        context, CHANNEL, NotificationGroups.VOICEMAIL, ID_SUMMARY, R.drawable.ic_stat_voicemail, title, open,
+    )
 
     /** Basic message-waiting notification; [count] of 0 clears it. */
     @SuppressLint("MissingPermission")
     fun showMessageWaiting(context: Context, count: Int, callVoicemail: PendingIntent?) {
         if (count <= 0) {
             NotificationManagerCompat.from(context).cancel(ID_MWI)
+            NotificationGroups.cancelSummaryIfEmpty(context, NotificationGroups.VOICEMAIL, ID_SUMMARY)
             return
         }
         if (!canNotify(context)) return
@@ -135,8 +151,11 @@ object VoicemailNotifier {
             .setOngoing(false)
             .setOnlyAlertOnce(true)
             .setContentIntent(dial)
+            .setGroup(NotificationGroups.VOICEMAIL)
+            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
             .build()
         NotificationManagerCompat.from(context).notify(ID_MWI, notification)
+        postSummary(context, title, dial)
     }
 
     private fun openVoicemailTab(context: Context): PendingIntent = PendingIntent.getActivity(

@@ -18,6 +18,7 @@ import androidx.core.app.NotificationManagerCompat
 import app.dialtone.phone.MainActivity
 import app.dialtone.phone.R
 import app.dialtone.phone.util.formatNumber
+import app.dialtone.phone.util.NotificationGroups
 import app.dialtone.phone.util.hasPermission
 import app.dialtone.phone.util.numberKey
 
@@ -37,6 +38,7 @@ import app.dialtone.phone.util.numberKey
 object MissedCalls {
     private const val CHANNEL = "missed_calls"
     private const val NOTIFICATION_ID = 43
+    private const val SUMMARY_ID = 44
 
     const val EXTRA_OPEN_CALL_LOG = "app.dialtone.phone.extra.OPEN_CALL_LOG"
 
@@ -75,6 +77,7 @@ object MissedCalls {
         val nm = NotificationManagerCompat.from(context)
         if (calls.isEmpty()) {
             nm.cancel(NOTIFICATION_ID)
+            nm.cancel(SUMMARY_ID)
             return
         }
         if (Build.VERSION.SDK_INT >= 33 && !context.hasPermission(Manifest.permission.POST_NOTIFICATIONS)) return
@@ -96,6 +99,9 @@ object MissedCalls {
             .setNumber(calls.size)
             .setContentIntent(openCallLog(context))
             .setDeleteIntent(broadcast(context, CallActionReceiver.ACTION_MISSED_DISMISSED, null))
+            // Its own group, so Android doesn't bundle it with voicemail under the app icon.
+            .setGroup(NotificationGroups.MISSED_CALLS)
+            .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
 
         if (byCaller.size == 1) {
             val latest = calls.first()
@@ -125,11 +131,16 @@ object MissedCalls {
                 .setStyle(inbox)
         }
         nm.notify(NOTIFICATION_ID, builder.build())
+        NotificationGroups.postSummary(
+            context, CHANNEL, NotificationGroups.MISSED_CALLS, SUMMARY_ID, R.drawable.ic_stat_call_missed,
+            if (calls.size == 1) "Missed call" else "${calls.size} missed calls", openCallLog(context),
+        )
     }
 
     /** Marks unseen missed calls as seen in the call log, and clears the notification. */
     fun markSeen(context: Context) {
         NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
+        NotificationManagerCompat.from(context).cancel(SUMMARY_ID)
         if (!context.hasPermission(Manifest.permission.WRITE_CALL_LOG)) return
         runCatching {
             context.contentResolver.update(
