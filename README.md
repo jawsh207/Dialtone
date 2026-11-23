@@ -105,7 +105,8 @@ It's the engine from the AOSP Dialer, as shipped in GrapheneOS, ported into `vvm
   follows the carrier's PIN length rules. On a brand-new VVM3 mailbox the engine replaces the
   carrier's default PIN with a random one; the screen fills that in so you can pick your own.
 - **Mailbox space:** the SIM's row shows e.g. "4 of 20 messages in mailbox", as the carrier
-  reported at the last sync (shown only when the carrier reports it).
+  reported at the last sync (shown only when the carrier reports it). The Voicemail tab shows it
+  too, at the top right of the list.
 - **Save / Share:** an open voicemail's Save copies its audio to a folder you pick (Android's
   file picker, no storage permission); Share sends it to any app. Neither changes anything on the
   carrier's server.

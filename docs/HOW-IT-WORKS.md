@@ -134,7 +134,8 @@ Verizon-style (VVM3) mailbox, it swaps the carrier's guessable default PIN for a
 only Dialtone knows; the PIN screen fills that in for you, so you just choose your own.
 
 Each sync also asks the carrier how full the mailbox is, and the SIM's row in Settings shows it,
-for example "4 of 20 messages in mailbox".
+for example "4 of 20 messages in mailbox". The Voicemail tab shows the same at the top right,
+opposite "All caught up".
 
 ## Voicemail transcription
 

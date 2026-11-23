@@ -187,6 +187,13 @@ fun VoicemailScreen(
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f),
                 )
+                mailboxSpace(accounts)?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
         statusBannerFor(accounts, health)?.let { banner ->
@@ -419,6 +426,19 @@ private fun VoicemailRow(
                 }
             }
         }
+    }
+}
+
+/**
+ * How full the carrier mailbox is, from the last sync: "4 of 20 in mailbox", or one entry per SIM
+ * when several report it. Null when no carrier reports it, so nothing is shown.
+ */
+internal fun mailboxSpace(accounts: List<VvmAccount>): String? {
+    val reporting = accounts.filter { it.enabled && it.quotaUsed != null && it.quotaTotal != null }
+    return when (reporting.size) {
+        0 -> null
+        1 -> reporting[0].let { "${it.quotaUsed} of ${it.quotaTotal} in mailbox" }
+        else -> reporting.joinToString(" · ") { "${it.label} ${it.quotaUsed}/${it.quotaTotal}" }
     }
 }
 
