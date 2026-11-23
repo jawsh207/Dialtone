@@ -23,6 +23,7 @@ import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
 import androidx.annotation.MainThread;
 import androidx.annotation.Nullable;
+import androidx.annotation.WorkerThread;
 import app.dialtone.phone.vvm.compat.PersistentLogger;
 import app.dialtone.phone.vvm.settings.VisualVoicemailSettingsUtil;
 import app.dialtone.phone.vvm.sync.SyncTask;
@@ -149,6 +150,49 @@ public final class DialtoneVoicemail {
     return handle != null
         && VisualVoicemailSettingsUtil.isEnabled(context, handle)
         && VvmAccountManager.isAccountActivated(context, handle);
+  }
+
+  /** What the PIN screen needs to know about one SIM's voicemail PIN. */
+  public static final class PinInfo {
+    /** Carrier's PIN length rules; 0 when the carrier didn't send them. */
+    public final int minLength;
+    public final int maxLength;
+    /**
+     * The random PIN the engine set when it activated a brand-new VVM3 mailbox (replacing the
+     * carrier's default), or null when the user's own PIN is in place. Only Dialtone knows it,
+     * so the PIN screen fills it in as the current PIN.
+     */
+    @Nullable public final String scrambledPin;
+
+    PinInfo(int minLength, int maxLength, @Nullable String scrambledPin) {
+      this.minLength = minLength;
+      this.maxLength = maxLength;
+      this.scrambledPin = scrambledPin;
+    }
+  }
+
+  public static PinInfo getPinInfo(Context context, PhoneAccountHandle handle) {
+    PinChanger changer = VoicemailComponent.get(context).getVoicemailClient().createPinChanger(context, handle);
+    PinChanger.PinSpecification spec = changer.getPinSpecification();
+    return new PinInfo(spec.minLength, spec.maxLength, changer.getScrambledPin());
+  }
+
+  /**
+   * Asks the carrier to change the voicemail PIN, over mobile data like a sync. Returns one of
+   * the {@link PinChanger} CHANGE_PIN_* results. On success the remembered random PIN (if any)
+   * is forgotten, since the user's own PIN now replaces it.
+   */
+  @WorkerThread
+  @PinChanger.ChangePinResult
+  public static int changePin(
+      Context context, PhoneAccountHandle handle, String oldPin, String newPin) {
+    PinChanger changer = VoicemailComponent.get(context).getVoicemailClient().createPinChanger(context, handle);
+    int result = changer.changePin(oldPin, newPin);
+    VvmLog.i(TAG, "change PIN result " + result);
+    if (result == PinChanger.CHANGE_PIN_SUCCESS && changer.getScrambledPin() != null) {
+      changer.setScrambledPin(null);
+    }
+    return result;
   }
 
   public static String readLog(Context context) {

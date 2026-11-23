@@ -60,6 +60,7 @@ import app.dialtone.phone.data.Contact
 import app.dialtone.phone.data.TranscriptionUi
 import app.dialtone.phone.data.Voicemail
 import app.dialtone.phone.data.VvmAccount
+import app.dialtone.phone.vvm.DialtoneVoicemail
 import app.dialtone.phone.data.VvmHealth
 import app.dialtone.phone.telecom.Dialer
 import app.dialtone.phone.ui.components.Avatar
@@ -70,6 +71,15 @@ import app.dialtone.phone.util.formatNumber
 import app.dialtone.phone.util.formatShortDate
 import app.dialtone.phone.util.numberKey
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material.icons.rounded.SaveAlt
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.runtime.rememberCoroutineScope
+import app.dialtone.phone.voicemail.VoicemailExport
 
 /** Everything the voicemail tab can ask the app to do. */
 class VoicemailActions(
@@ -82,6 +92,9 @@ class VoicemailActions(
     val onToggleTranscription: (Boolean) -> Unit,
     val readLog: () -> String,
     val clearLog: () -> Unit,
+    val pinInfo: suspend (VvmAccount) -> DialtoneVoicemail.PinInfo?,
+    /** Returns a PinChanger CHANGE_PIN_* result. */
+    val changePin: suspend (account: VvmAccount, oldPin: String, newPin: String) -> Int,
 )
 
 @Composable
@@ -105,6 +118,43 @@ fun VoicemailScreen(
         }
     }
     var expandedId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val scope = rememberCoroutineScope()
+    // Save: the message waiting for the user to pick where its copy goes (saveable, in case
+    // Android recreates Dialtone while the picker is open).
+    var savingId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val saveLauncher = rememberLauncherForActivityResult(VoicemailExport.CreateAudioDocument()) { target ->
+        val vm = voicemails?.firstOrNull { it.id == savingId }
+        savingId = null
+        if (vm != null && target != null) scope.launch {
+            val ok = VoicemailExport.saveTo(context, vm, target)
+            Toast.makeText(context, if (ok) "Voicemail saved" else "Couldn't save the voicemail", Toast.LENGTH_SHORT).show()
+        }
+    }
+    fun callerName(vm: Voicemail) =
+        contactIndex[numberKey(vm.number)]?.name ?: if (vm.number.isBlank()) "Unknown" else formatNumber(vm.number)
+    val onSave: (Voicemail) -> Unit = { vm ->
+        scope.launch {
+            val mime = VoicemailExport.mimeType(context, vm)
+            val name = VoicemailExport.fileName(
+                callerName(vm), vm.date, VoicemailExport.extensionFor(mime), java.time.ZoneId.systemDefault(),
+            )
+            savingId = vm.id
+            runCatching { saveLauncher.launch(name to mime) }.onFailure {
+                savingId = null
+                Toast.makeText(context, "No app can save files", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    val onShare: (Voicemail) -> Unit = { vm ->
+        scope.launch {
+            val intent = VoicemailExport.shareIntent(context, vm, callerName(vm))
+            if (intent == null) {
+                Toast.makeText(context, "Couldn't share the voicemail", Toast.LENGTH_SHORT).show()
+            } else {
+                runCatching { context.startActivity(intent) }
+            }
+        }
+    }
 
     if (voicemails == null) {
         Box(Modifier.fillMaxSize().padding(contentPadding), contentAlignment = Alignment.Center) {
@@ -173,6 +223,8 @@ fun VoicemailScreen(
                 transcribedOnDevice = vm.id in transcription.onDevice,
                 onCall = actions.onCall,
                 onRequestAudio = actions.onRequestAudio,
+                onSave = { onSave(vm) },
+                onShare = { onShare(vm) },
                 onDelete = {
                     if (player.currentId == vm.id) player.release()
                     actions.onDelete(vm)
@@ -198,6 +250,7 @@ fun VoicemailScreen(
 
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun VoicemailRow(
     vm: Voicemail,
@@ -209,6 +262,8 @@ private fun VoicemailRow(
     transcribedOnDevice: Boolean,
     onCall: (String) -> Unit,
     onRequestAudio: (Voicemail) -> Unit,
+    onSave: () -> Unit,
+    onShare: () -> Unit,
     onDelete: () -> Unit,
     shape: Shape,
     modifier: Modifier = Modifier,
@@ -329,7 +384,8 @@ private fun VoicemailRow(
                     }
 
                     Spacer(Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Wraps onto a second line when Save and Share don't fit beside the others.
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (vm.number.isNotBlank()) {
                             AssistChip(
                                 onClick = { onCall(vm.number) },
@@ -340,6 +396,18 @@ private fun VoicemailRow(
                                 onClick = { Dialer.sms(context, vm.number) },
                                 label = { Text("Message") },
                                 leadingIcon = { Icon(Icons.AutoMirrored.Rounded.Message, null, Modifier.size(18.dp)) },
+                            )
+                        }
+                        if (vm.hasContent) {
+                            AssistChip(
+                                onClick = onSave,
+                                label = { Text("Save") },
+                                leadingIcon = { Icon(Icons.Rounded.SaveAlt, null, Modifier.size(18.dp)) },
+                            )
+                            AssistChip(
+                                onClick = onShare,
+                                label = { Text("Share") },
+                                leadingIcon = { Icon(Icons.Rounded.Share, null, Modifier.size(18.dp)) },
                             )
                         }
                         AssistChip(

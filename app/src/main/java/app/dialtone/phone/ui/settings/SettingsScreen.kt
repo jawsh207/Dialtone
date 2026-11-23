@@ -37,6 +37,7 @@ import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Password
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.automirrored.outlined.PhoneForwarded
 import androidx.compose.material.icons.outlined.SimCard
@@ -116,6 +117,7 @@ fun SettingsScreen(
     var pickingContact by rememberSaveable { mutableStateOf(false) }
     var editingResponses by rememberSaveable { mutableStateOf(false) }
     var viewingLog by rememberSaveable { mutableStateOf(false) }
+    var changingPinFor by rememberSaveable { mutableStateOf<String?>(null) }
 
     fun open(intent: Intent?) {
         if (intent == null) return
@@ -143,7 +145,9 @@ fun SettingsScreen(
         ) {
             // ---- Visual voicemail
             item(key = "vvm-header") { SectionHeader("Visual voicemail") }
-            val vvmRows = accounts.size + 1
+            // SIMs whose mailbox Dialtone itself runs: those get a PIN row.
+            val pinAccounts = accounts.filter { it.supported && it.enabled && it.activated && !it.carrierAppInstalled }
+            val vvmRows = accounts.size + pinAccounts.size + 1
             if (accounts.isEmpty()) {
                 item(key = "vvm-none") {
                     SettingsRow(Icons.Outlined.Voicemail, "No SIM found", segmentShape(0, vvmRows), summary = "Visual voicemail needs a SIM from a supported carrier")
@@ -157,7 +161,7 @@ fun SettingsScreen(
                         !account.supported -> "Not supported for this carrier"
                         account.carrierAppInstalled -> "Handled by your carrier's voicemail app"
                         !account.enabled -> "Off · ${protocolName(account.protocol)}"
-                        account.activated -> "On · ${protocolName(account.protocol)}"
+                        account.activated -> "On · ${protocolName(account.protocol)}" + mailboxSpace(account)
                         else -> "Setting up · ${protocolName(account.protocol)}"
                     },
                     shape = segmentShape(i, vvmRows),
@@ -169,6 +173,15 @@ fun SettingsScreen(
                             onCheckedChange = { actions.onToggleVisualVoicemail(account, it) },
                         )
                     },
+                )
+            }
+            itemsIndexed(pinAccounts, key = { _, a -> "vvm-pin-${a.id}" }) { i, account ->
+                SettingsRow(
+                    icon = Icons.Outlined.Password,
+                    title = if (accounts.size > 1) "Change voicemail PIN · ${account.label}" else "Change voicemail PIN",
+                    summary = "The PIN for calling in to your voicemail",
+                    shape = segmentShape(accounts.size + i, vvmRows),
+                    onClick = { changingPinFor = account.id },
                 )
             }
             item(key = "vvm-sync") {
@@ -347,6 +360,11 @@ fun SettingsScreen(
     }
     if (editingResponses) QuickResponsesEditor(onDismiss = { editingResponses = false })
     if (viewingLog) LogDialog(health, actions, onDismiss = { viewingLog = false })
+    changingPinFor?.let { id ->
+        val account = accounts.firstOrNull { it.id == id }
+        if (account == null) changingPinFor = null
+        else ChangePinDialog(account, actions, onDismiss = { changingPinFor = null })
+    }
 }
 
 /** A settings row in a grouped card, as in the Contacts app: icon, title, summary, trailing. */
@@ -382,6 +400,13 @@ private fun SettingsRow(
     } else {
         Surface(shape = shape, color = scheme.surfaceBright, modifier = modifier) { content() }
     }
+}
+
+/** " · 4 of 20 messages in mailbox", from the carrier's last report; empty when it gave none. */
+private fun mailboxSpace(account: VvmAccount): String {
+    val used = account.quotaUsed ?: return ""
+    val total = account.quotaTotal ?: return ""
+    return " · $used of $total messages in mailbox"
 }
 
 private fun protocolName(protocol: String?): String = when (protocol) {

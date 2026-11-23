@@ -119,6 +119,15 @@ class DialerViewModel(app: Application) : AndroidViewModel(app) {
 
     fun syncVoicemail() = voicemailRepo.syncNow()
 
+    suspend fun voicemailPinInfo(account: VvmAccount) = voicemailRepo.pinInfo(account.id)
+
+    /** Changes the PIN, then re-reads account state (the engine may clear a setup error). */
+    suspend fun changeVoicemailPin(account: VvmAccount, oldPin: String, newPin: String): Int {
+        val result = voicemailRepo.changePin(account.id, oldPin, newPin)
+        loadVvmState()
+        return result
+    }
+
     fun setTranscriptionEnabled(enabled: Boolean) {
         viewModelScope.launch {
             voicemailRepo.setTranscriptionEnabled(enabled)

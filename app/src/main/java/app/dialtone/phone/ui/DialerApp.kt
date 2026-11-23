@@ -203,6 +203,8 @@ fun DialerApp(
             onToggleTranscription = vm::setTranscriptionEnabled,
             readLog = vm::voicemailLog,
             clearLog = vm::clearVoicemailLog,
+            pinInfo = vm::voicemailPinInfo,
+            changePin = vm::changeVoicemailPin,
         )
     }
     val favorites = remember(contacts) { contacts.filter { it.starred } }

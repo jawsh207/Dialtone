@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the folder that holds a voicemail being shared is exposed (see VoicemailExport). -->
+<paths>
+    <cache-path name="voicemail" path="voicemail-share/" />
+</paths>

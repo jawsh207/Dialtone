@@ -27,9 +27,9 @@ due), and `DialtoneApplication.kt` gets everything ready for that before anythin
 | The whole app: search bar, the three tabs, the bottom bar | `ui/DialerApp.kt` |
 | **Home**: call log filters, Favorites, Contacts button, recent calls | `ui/home/HomeScreen.kt` |
 | **Keypad**: the dial pad and Suggested contacts | `ui/keypad/KeypadScreen.kt`, `ui/components/DialPad.kt` |
-| **Voicemail**: your messages, playback, transcripts | `ui/voicemail/VoicemailScreen.kt`, `ui/voicemail/VoicemailPlayer.kt` |
+| **Voicemail**: your messages, playback, transcripts, Save and Share | `ui/voicemail/VoicemailScreen.kt`, `ui/voicemail/VoicemailPlayer.kt` |
 | **Contacts** list (from Home), with Favorites and the A–Z strip | `ui/contacts/ContactsScreen.kt` |
-| **Settings** | `ui/settings/SettingsScreen.kt` |
+| **Settings**, and its Change voicemail PIN dialog | `ui/settings/SettingsScreen.kt`, `ui/settings/ChangePinDialog.kt` |
 | The screen during a call | `incall/InCallScreen.kt` |
 | Colours, font and shapes | `ui/theme/Theme.kt` |
 
@@ -114,6 +114,28 @@ If another phone app (like the stock dialer) also downloaded your voicemails, th
 message can be stored twice. Dialtone matches the copies and shows each message once
 (`data/VoicemailDuplicates.kt`).
 
+### Saving and sharing a voicemail
+
+An open voicemail has **Save** and **Share** (`voicemail/VoicemailExport.kt`). Save copies the
+recording to a folder you choose with Android's own file picker; Share hands a copy to any app.
+Both only copy the audio: the message stays on the carrier's server, and the saved file stays
+even if you uninstall Dialtone or turn visual voicemail off (which clears Dialtone's own copies).
+
+Dialtone deliberately doesn't do the stock dialer's "archive", which deletes the oldest messages
+from the carrier once the mailbox is three-quarters full and keeps them only on the phone.
+
+### Voicemail PIN and mailbox space
+
+**Change voicemail PIN** (`ui/settings/ChangePinDialog.kt`, rules in `voicemail/VoicemailPin.kt`)
+sends the carrier your current PIN and the new one, over mobile data. Dialtone checks the new PIN
+against the length rules the carrier sent during setup, and turns the carrier's answer (too short,
+too easy to guess, wrong current PIN) into a plain sentence. When the engine sets up a brand-new
+Verizon-style (VVM3) mailbox, it swaps the carrier's guessable default PIN for a random one that
+only Dialtone knows; the PIN screen fills that in for you, so you just choose your own.
+
+Each sync also asks the carrier how full the mailbox is, and the SIM's row in Settings shows it,
+for example "4 of 20 messages in mailbox".
+
 ## Voicemail transcription
 
 If your carrier sends a written transcript with a voicemail, Dialtone shows it, and never
@@ -139,7 +161,8 @@ recording, and some send audio to an online service.
 
 Settings (`ui/settings/SettingsScreen.kt`) gathers:
 
-- **Visual voicemail:** turn it on or off for each SIM, and check for new messages.
+- **Visual voicemail:** turn it on or off for each SIM, see how full the carrier mailbox is
+  (when the carrier reports it), change your voicemail PIN, and check for new messages.
 - **Transcription:** the Transcribe voicemail switch, and a link to choose your voice input.
 - **Send to voicemail:** the list, and ways to add to it.
 - **Calls:** links to Android's blocked numbers and calling accounts, and your quick responses.

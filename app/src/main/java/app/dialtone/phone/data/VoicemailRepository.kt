@@ -11,6 +11,7 @@ import android.os.Build
 import app.dialtone.phone.transcription.SystemRecognizer
 import app.dialtone.phone.transcription.Transcription
 import app.dialtone.phone.vvm.DialtoneVoicemail
+import app.dialtone.phone.vvm.PinChanger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -157,7 +158,9 @@ class VoicemailRepository(private val context: Context) {
     }
 
     suspend fun accounts(): List<VvmAccount> = withContext(Dispatchers.IO) {
+        val quotas = quotas()
         DialtoneVoicemail.getAccounts(context).map {
+            val quota = quotas[it.handle.id]
             VvmAccount(
                 id = it.handle.id,
                 label = it.label,
@@ -166,8 +169,48 @@ class VoicemailRepository(private val context: Context) {
                 enabled = it.enabled,
                 activated = it.activated,
                 carrierAppInstalled = it.carrierAppInstalled,
+                quotaUsed = quota?.first,
+                quotaTotal = quota?.second,
             )
         }
+    }
+
+    /**
+     * Mailbox usage per SIM (account id → used to total), which the engine records in the
+     * status table on every sync. Carriers that don't report it are left out.
+     */
+    private fun quotas(): Map<String, Pair<Int, Int>> = runCatching {
+        context.contentResolver.query(
+            Status.CONTENT_URI,
+            arrayOf(Status.PHONE_ACCOUNT_ID, Status.QUOTA_OCCUPIED, Status.QUOTA_TOTAL),
+            "${Status.SOURCE_PACKAGE} = ?",
+            arrayOf(context.packageName),
+            null,
+        )?.use { c ->
+            buildMap {
+                while (c.moveToNext()) {
+                    val id = c.getString(0) ?: continue
+                    val used = if (c.isNull(1)) -1 else c.getInt(1)
+                    val total = if (c.isNull(2)) -1 else c.getInt(2)
+                    if (used >= 0 && total > 0) put(id, used to total)
+                }
+            }
+        }
+    }.getOrNull().orEmpty()
+
+    /** PIN length rules and any random PIN the engine set, for the Change PIN screen. */
+    suspend fun pinInfo(accountId: String): DialtoneVoicemail.PinInfo? = withContext(Dispatchers.IO) {
+        DialtoneVoicemail.getAccounts(context).firstOrNull { it.handle.id == accountId }?.let {
+            DialtoneVoicemail.getPinInfo(context, it.handle)
+        }
+    }
+
+    /** Changes the voicemail PIN on the carrier's server; returns a PinChanger result code. */
+    suspend fun changePin(accountId: String, oldPin: String, newPin: String): Int = withContext(Dispatchers.IO) {
+        val account = DialtoneVoicemail.getAccounts(context).firstOrNull { it.handle.id == accountId }
+            ?: return@withContext PinChanger.CHANGE_PIN_SYSTEM_ERROR
+        runCatching { DialtoneVoicemail.changePin(context, account.handle, oldPin, newPin) }
+            .getOrDefault(PinChanger.CHANGE_PIN_SYSTEM_ERROR)
     }
 
     suspend fun setEnabled(accountId: String, enabled: Boolean) = withContext(Dispatchers.IO) {

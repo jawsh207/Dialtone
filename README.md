@@ -21,15 +21,15 @@ Working on the code? See [CONTRIBUTING.md](CONTRIBUTING.md) for how changes are 
 - **Contacts** (from Home) — Favorites section, A–Z list with a quick-scroll strip, call and text
   buttons, Add to / Remove from Favorites, Send to voicemail.
 - **Voicemail** — built-in visual voicemail (see below): inbox, carrier transcripts (or your
-  speech-to-text app's), playback with a wavy progress bar, call back, message, delete, and
-  new-voicemail notifications.
+  speech-to-text app's), playback with a wavy progress bar, call back, message, save, share,
+  delete, and new-voicemail notifications.
 - **In-call screen** — works over the lock screen: Mute, Keypad (DTMF), Audio (earpiece, speaker,
   wired headset or a Bluetooth device), Hold, Add call. Call waiting offers Hold & answer, End &
   answer or Decline; a held call shows with Swap, and Merge when the network allows a conference.
   Reply with message declines with a text. SIM picker for dual-SIM phones with no default.
 - **Notifications** — full-screen incoming calls (Answer / Decline), an ongoing call with Hang up,
   missed calls with Call back / Message, and new voicemail.
-- **Settings** — visual voicemail per SIM, transcription, Send to voicemail, blocked numbers,
+- **Settings** — visual voicemail per SIM (with mailbox space and Change voicemail PIN), transcription, Send to voicemail, blocked numbers,
   calling accounts, quick responses, and the voicemail log.
 
 ## Build & install
@@ -100,8 +100,20 @@ It's the engine from the AOSP Dialer, as shipped in GrapheneOS, ported into `vvm
 - **No visual voicemail?** Dialtone shows the carrier's basic "new voicemail" notification
   with a tap-to-call action instead.
 
+- **Change voicemail PIN:** Settings › Visual voicemail › Change voicemail PIN, once a SIM's
+  visual voicemail is on and set up. The request goes to the carrier over mobile data and
+  follows the carrier's PIN length rules. On a brand-new VVM3 mailbox the engine replaces the
+  carrier's default PIN with a random one; the screen fills that in so you can pick your own.
+- **Mailbox space:** the SIM's row shows e.g. "4 of 20 messages in mailbox", as the carrier
+  reported at the last sync (shown only when the carrier reports it).
+- **Save / Share:** an open voicemail's Save copies its audio to a folder you pick (Android's
+  file picker, no storage permission); Share sends it to any app. Neither changes anything on the
+  carrier's server.
+
 Left out from the stock dialer: Google's cloud transcription (needs Google's private API),
-voicemail archiving, and the PIN-change and greeting screens.
+automatic archiving (it deletes the oldest messages from the carrier's server once the mailbox is
+75% full, leaving them only on the phone), and changing your greeting (the engine never
+implemented it; call voicemail to record one).
 
 ### Send to voicemail
 
@@ -158,8 +170,8 @@ app/src/main/java/app/dialtone/phone/
   incall/                      in-call activity and screen
   data/                        contacts, call log, voicemail repositories
   ui/                          app shell, tabs, keypad, contacts, voicemail, settings, theme
-app/src/test/java/…            unit tests (number matching, duplicates, call log grouping, filters)
-  voicemail/                   voicemail notifications (new message, message-waiting, boot)
+app/src/test/java/…            unit tests (number matching, duplicates, call log grouping, filters, PIN rules, file names)
+  voicemail/                   voicemail notifications, Save/Share, PIN rules
   vvm/                         visual voicemail engine (Java, ported from AOSP Dialer)
     DialtoneVoicemail.java     the app's entry points into the engine
     compat/                    small stand-ins for Dialer-internal helpers

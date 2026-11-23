@@ -53,6 +53,9 @@ data class VvmAccount(
     val enabled: Boolean,
     val activated: Boolean,
     val carrierAppInstalled: Boolean,
+    /** Messages in the carrier mailbox and how many it holds, from the last sync; null if unknown. */
+    val quotaUsed: Int? = null,
+    val quotaTotal: Int? = null,
 )
 
 /** Voicemail transcription (via the system speech recognizer) state for the voicemail UI. */
