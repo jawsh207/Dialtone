@@ -2,4 +2,7 @@
     <!-- Launcher icon: GrapheneOS Dialer handset, recolored white on green. -->
     <color name="ic_launcher_background">#FF1E8E3E</color>
     <color name="ic_launcher_foreground">#FFFFFFFF</color>
+    <!-- Long-press shortcut icons (Keypad, Voicemail); Android 12+ uses wallpaper colours (values-v31). -->
+    <color name="shortcut_background">#FFC4EED0</color>
+    <color name="shortcut_foreground">#FF072E15</color>
 </resources>

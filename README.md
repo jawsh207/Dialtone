@@ -29,6 +29,12 @@ Working on the code? See [CONTRIBUTING.md](CONTRIBUTING.md) for how changes are 
   Reply with message declines with a text. SIM picker for dual-SIM phones with no default.
 - **Notifications** — full-screen incoming calls (Answer / Decline), an ongoing call with Hang up,
   missed calls with Call back / Message, and new voicemail.
+- **Widgets** — **Favorites** (a resizable grid of your favorites; tap to call), **Voicemail**
+  (new-message count plus the newest caller and transcript; tap for the Voicemail tab) and
+  **Speed dial** (one contact, picked when you place it; tap to call). They refresh a few
+  seconds after contacts, calls or voicemail change.
+- **App shortcuts** — long-press the icon for Keypad, Voicemail and your three most-called
+  favorites (tap to call).
 - **Settings** — visual voicemail per SIM (with mailbox space and Change voicemail PIN), transcription, Send to voicemail, blocked numbers,
   calling accounts, quick responses, and the voicemail log.
 
@@ -76,7 +82,7 @@ for a local debug build. Release builds use R8 with the rules in `app/proguard-r
 ### Versions
 
 `gradle/libs.versions.toml` pins AGP 9.1.1 (Gradle 9.3.1, built-in Kotlin 2.2.10), compileSdk 37,
-Compose BOM 2026.09.00 and `material3 1.5.0-beta01` (the 1.5 line requires AGP 9.1+ and
+Compose BOM 2026.09.00, Glance 1.2.0 (home screen widgets) and `material3 1.5.0-beta01` (the 1.5 line requires AGP 9.1+ and
 compileSdk 37). The Expressive APIs used are `MaterialExpressiveTheme`,
 `MotionScheme.expressive()`, `MaterialShapes` + `toShape()`, `LoadingIndicator` and
 `LinearWavyProgressIndicator`.

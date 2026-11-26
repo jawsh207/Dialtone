@@ -21,7 +21,17 @@ import app.dialtone.phone.ui.theme.ContactsMatchTheme
 import app.dialtone.phone.util.hasPermission
 import app.dialtone.phone.voicemail.VoicemailNotifier
 import app.dialtone.phone.vvm.DialtoneVoicemail
+import app.dialtone.phone.widget.WidgetUi
+import app.dialtone.phone.widget.Widgets
 
+/**
+ * Dialtone's only full screen: the tabs (Home, Keypad, Voicemail) and Settings, or the "set as
+ * default" screen until Dialtone is the phone app.
+ *
+ * Everything that opens Dialtone arrives here as an intent: the launcher, tel: links and DIAL
+ * (Keypad), notifications (call log or Voicemail tab), Android's call settings links (Settings),
+ * and the long-press shortcuts and widgets ([WidgetUi.ACTION_OPEN_VOICEMAIL]).
+ */
 class MainActivity : ComponentActivity() {
 
     private var isDefault by mutableStateOf(false)
@@ -52,7 +62,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         isDefault = Dialer.isDefaultDialer(this)
         pendingNumber = dialNumberFrom(intent)
-        openVoicemail = intent.getBooleanExtra(VoicemailNotifier.EXTRA_OPEN_VOICEMAIL, false)
+        openVoicemail = wantsVoicemail(intent)
         openCallLog = intent.getBooleanExtra(MissedCalls.EXTRA_OPEN_CALL_LOG, false)
         openSettings = wantsSettings(intent)
         if (isDefault) requestRuntimePermissions()
@@ -80,15 +90,22 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         isDefault = Dialer.isDefaultDialer(this)
+        // Catches up widgets and favorite shortcuts (e.g. after permissions were just granted).
+        // In the foreground, Android doesn't rate-limit shortcut updates.
+        if (isDefault) Widgets.refreshAllAsync(this)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         pendingNumber = dialNumberFrom(intent)
-        if (intent.getBooleanExtra(VoicemailNotifier.EXTRA_OPEN_VOICEMAIL, false)) openVoicemail = true
+        if (wantsVoicemail(intent)) openVoicemail = true
         if (intent.getBooleanExtra(MissedCalls.EXTRA_OPEN_CALL_LOG, false)) openCallLog = true
         if (wantsSettings(intent)) openSettings = true
     }
+
+    private fun wantsVoicemail(intent: Intent?): Boolean =
+        intent?.action == WidgetUi.ACTION_OPEN_VOICEMAIL ||
+            intent?.getBooleanExtra(VoicemailNotifier.EXTRA_OPEN_VOICEMAIL, false) == true
 
     private fun wantsSettings(intent: Intent?): Boolean =
         intent?.action == TelecomManager.ACTION_SHOW_CALL_SETTINGS ||

@@ -6,4 +6,11 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
+
+    <!-- Speed dial widget's contact picker: a sheet over the home screen, no window of its own. -->
+    <style name="Theme.Dialtone.Translucent" parent="Theme.Dialtone">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>

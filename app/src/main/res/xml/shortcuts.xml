@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fixed long-press shortcuts on the app icon. Favorites are added below these at run time
+     (shortcuts/AppShortcuts.kt). targetPackage must be the literal application id. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="keypad"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_dialpad"
+        android:shortcutShortLabel="@string/shortcut_keypad">
+        <!-- A bare DIAL opens the Keypad tab with an empty number. -->
+        <intent
+            android:action="android.intent.action.DIAL"
+            android:targetPackage="app.dialtone.phone"
+            android:targetClass="app.dialtone.phone.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="voicemail"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_voicemail"
+        android:shortcutShortLabel="@string/shortcut_voicemail">
+        <intent
+            android:action="app.dialtone.phone.action.OPEN_VOICEMAIL"
+            android:targetPackage="app.dialtone.phone"
+            android:targetClass="app.dialtone.phone.MainActivity" />
+    </shortcut>
+</shortcuts>
