@@ -14,6 +14,9 @@ materialIcons = "1.7.8"
 mime4j = "0.8.9"
 # Home screen widgets (Compose-style RemoteViews).
 glance = "1.2.0"
+# Glance runs widget updates through WorkManager but only asks for 2.7.1 (2021), whose old Room
+# database can't start in a release build from current R8. Pinned to a current release.
+work = "2.12.0"
 # Unit tests (plain JVM, run on every CI build).
 junit = "4.13.2"
 
@@ -32,6 +35,7 @@ androidx-compose-material-icons-extended = { group = "androidx.compose.material"
 apache-mime4j-core = { group = "org.apache.james", name = "apache-mime4j-core", version.ref = "mime4j" }
 apache-mime4j-dom = { group = "org.apache.james", name = "apache-mime4j-dom", version.ref = "mime4j" }
 androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
+androidx-work-runtime = { group = "androidx.work", name = "work-runtime", version.ref = "work" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]

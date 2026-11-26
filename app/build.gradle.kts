@@ -92,6 +92,8 @@ dependencies {
 
     // Home screen widgets
     implementation(libs.androidx.glance.appwidget)
+    // Glance's own WorkManager minimum (2.7.1) crashes at app start under R8; see the toml.
+    implementation(libs.androidx.work.runtime)
 
     // Visual voicemail engine
     implementation(libs.apache.mime4j.core)

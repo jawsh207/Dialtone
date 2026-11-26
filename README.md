@@ -82,7 +82,7 @@ for a local debug build. Release builds use R8 with the rules in `app/proguard-r
 ### Versions
 
 `gradle/libs.versions.toml` pins AGP 9.1.1 (Gradle 9.3.1, built-in Kotlin 2.2.10), compileSdk 37,
-Compose BOM 2026.09.00, Glance 1.2.0 (home screen widgets) and `material3 1.5.0-beta01` (the 1.5 line requires AGP 9.1+ and
+Compose BOM 2026.09.00, Glance 1.2.0 (home screen widgets, with WorkManager pinned to 2.12.0) and `material3 1.5.0-beta01` (the 1.5 line requires AGP 9.1+ and
 compileSdk 37). The Expressive APIs used are `MaterialExpressiveTheme`,
 `MotionScheme.expressive()`, `MaterialShapes` + `toShape()`, `LoadingIndicator` and
 `LinearWavyProgressIndicator`.
