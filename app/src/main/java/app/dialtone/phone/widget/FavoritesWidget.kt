@@ -46,8 +46,8 @@ import kotlinx.coroutines.withContext
  * Favorites widget: your starred contacts as a grid of faces; tap one to call them.
  *
  * Same people and order as the Favorites row on Home (alphabetical, so faces stay where you
- * expect them), calling their first number as Home does. The number of columns follows the
- * widget's width; rows scroll when there are more favorites than fit.
+ * expect them), calling their first number as Home does. The number of columns (up to five)
+ * follows the widget's width; rows scroll when there are more favorites than fit.
  */
 class FavoritesWidget : GlanceAppWidget() {
 
@@ -69,7 +69,7 @@ class FavoritesWidget : GlanceAppWidget() {
     private fun Content() {
         val context = LocalContext.current
         val tick by Widgets.tick.collectAsState()
-        val state by produceState<State?>(null, tick) { value = load(context) }
+        val state by produceState<State?>(null, tick) { value = load(context, tick) }
         Box(
             modifier = GlanceModifier
                 .fillMaxSize()
@@ -92,7 +92,9 @@ class FavoritesWidget : GlanceAppWidget() {
     private fun Grid(favorites: List<Favorite>) {
         val context = LocalContext.current
         val width = LocalSize.current.width - WidgetPadding * 2
-        val columns = (width.value / CELL_WIDTH).toInt().coerceIn(1, 6)
+        // Glance's grid only has layouts for 1–5 columns; more fails the whole widget ("Can't
+        // show content"). Exact size mode also draws the landscape size, which is wider.
+        val columns = (width.value / CELL_WIDTH).toInt().coerceIn(1, MAX_COLUMNS)
         LazyVerticalGrid(gridCells = GridCells.Fixed(columns), modifier = GlanceModifier.fillMaxSize()) {
             items(favorites, itemId = { it.id }) { fav ->
                 Column(
@@ -127,22 +129,34 @@ class FavoritesWidget : GlanceAppWidget() {
         )
     }
 
-    private suspend fun load(context: Context): State = withContext(Dispatchers.IO) {
+    private suspend fun load(context: Context, tick: Int): State = withContext(Dispatchers.IO) {
         if (!context.hasPermission(Manifest.permission.READ_CONTACTS)) return@withContext State(emptyList(), true)
         val px = WidgetUi.dpToPx(context, AVATAR.dp)
+        // Portrait and landscape are composed separately; handing both the same Bitmap objects
+        // lets the launcher receive each photo once instead of twice.
+        val photos = synchronized(photoCache) {
+            if (photoCacheTick != tick) { photoCache.clear(); photoCacheTick = tick }
+            photoCache
+        }
         val favorites = ContactsRepository(context).load()
-            .filter { it.starred }
-            .mapNotNull { c ->
-                val number = c.numbers.firstOrNull()?.number ?: return@mapNotNull null
-                Favorite(c.id, c.name, number, WidgetUi.loadPhoto(context, c.photoUri, px))
-            }
+            .filter { it.starred && it.numbers.isNotEmpty() }
             // Bitmaps add up; a huge favorites list would overflow what a widget can carry.
             .take(MAX_FAVORITES)
+            .map { c ->
+                val number = c.numbers.first().number
+                val photo = c.photoUri?.let { uri ->
+                    synchronized(photos) { photos.getOrPut(uri) { WidgetUi.loadPhoto(context, uri, px) } }
+                }
+                Favorite(c.id, c.name, number, photo)
+            }
         State(favorites, false)
     }
 
     private companion object {
         const val CELL_WIDTH = 72f
+        const val MAX_COLUMNS = 5
+        val photoCache = HashMap<String, Bitmap?>()
+        var photoCacheTick = -1
         const val AVATAR = 48
         const val MAX_FAVORITES = 30
     }
