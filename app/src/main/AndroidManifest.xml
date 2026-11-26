@@ -69,6 +69,10 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="tel" />
             </intent-filter>
+            <!-- Long-press shortcuts on the app icon: Keypad and Voicemail (favorites are added at run time). -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
 
         <activity
@@ -80,6 +84,64 @@
             android:showWhenLocked="true"
             android:turnScreenOn="true"
             android:taskAffinity="app.dialtone.phone.incall" />
+
+        <!-- ===== Home screen widgets and app shortcuts ===== -->
+        <!-- Places a call for a widget or shortcut tap. Not exported, so other apps can't use it. -->
+        <activity
+            android:name=".widget.QuickCallActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay" />
+        <!-- Exported because the launcher opens it when a Speed dial widget is placed. -->
+        <activity
+            android:name=".widget.SpeedDialConfigActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Dialtone.Translucent">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+        <receiver
+            android:name=".widget.FavoritesWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_favorites">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_favorites" />
+        </receiver>
+        <receiver
+            android:name=".widget.VoicemailWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_voicemail">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_voicemail" />
+        </receiver>
+        <receiver
+            android:name=".widget.SpeedDialWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_speed_dial">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_speed_dial" />
+        </receiver>
+        <service
+            android:name=".widget.WidgetRefreshJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <!-- Telecom binds this while calls exist. Telecom plays the ringtone
              (IN_CALL_SERVICE_RINGING is left off on purpose). -->

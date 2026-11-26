@@ -32,6 +32,9 @@ due), and `DialtoneApplication.kt` gets everything ready for that before anythin
 | **Settings**, and its Change voicemail PIN dialog | `ui/settings/SettingsScreen.kt`, `ui/settings/ChangePinDialog.kt` |
 | The screen during a call | `incall/InCallScreen.kt` |
 | Colours, font and shapes | `ui/theme/Theme.kt` |
+| **Home screen widgets**: Favorites, Voicemail, Speed dial | `widget/FavoritesWidget.kt`, `widget/VoicemailWidget.kt`, `widget/SpeedDialWidget.kt` |
+| The Speed dial widget's contact picker | `widget/SpeedDialConfigActivity.kt` |
+| **Long-press menu** on the app icon (Keypad, Voicemail, favorites) | `res/xml/shortcuts.xml`, `shortcuts/AppShortcuts.kt` |
 
 The screens get their data (calls, contacts, voicemails) from `ui/DialerViewModel.kt`, which
 in turn reads it from Android through the files in `data/`. When something changes in
@@ -158,6 +161,29 @@ phone's speech-to-text app (for example Distillery) to transcribe the recording
 Whether it works depends on your speech-to-text app: not every app can transcribe a
 recording, and some send audio to an online service.
 
+## Widgets and the long-press menu
+
+Dialtone has three home screen widgets (long-press the home screen › Widgets › Dialtone):
+
+- **Favorites:** your favorite contacts as a grid of faces, in the same order as on Home. Tap a
+  face to call that person's first number. Make it wider for more columns.
+- **Voicemail:** how many messages are new, and the newest one's caller, time and the start of
+  its transcript. Tap it to open the Voicemail tab. Shrunk to one row, it leaves out the
+  transcript.
+- **Speed dial:** one person. When you place it, Dialtone asks who (and which number, if they
+  have more than one); tap it to call them. On Android 12 and later, long-press it and choose
+  reconfigure to pick someone else.
+
+Long-pressing Dialtone's app icon offers **Keypad**, **Voicemail**, and up to three favorites:
+the ones you call most, with recent calls counting more (`data/FavoriteRanking.kt`). Tap a
+favorite there to call them.
+
+Widgets don't update by themselves, so Dialtone watches your contacts, call log and voicemail
+and redraws the widgets and the favorites in the long-press menu a few seconds after any of them
+changes, whether Dialtone is open or not (`widget/Widgets.kt`). Calls from a widget or the
+long-press menu go through a small invisible screen that just places the call
+(`widget/QuickCallActivity.kt`). Other apps can't use it.
+
 ## Settings
 
 Settings (`ui/settings/SettingsScreen.kt`) gathers:
@@ -186,6 +212,7 @@ It deliberately has no microphone permission of its own, so it can't record anyt
 
 GitHub builds Dialtone automatically. Every change first runs the automated tests
 (`app/src/test/`), which check things like matching one phone number written different ways,
-spotting duplicate voicemails, grouping the call log and the call log filters. If a test fails,
+spotting duplicate voicemails, grouping the call log, the call log filters and which favorites
+go in the long-press menu. If a test fails,
 no app is built. Then it produces a signed test build. A release is made by adding release
 notes or using the **Build release** button under Actions. See the README for details.

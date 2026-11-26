@@ -90,6 +90,9 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
 
+    // Home screen widgets
+    implementation(libs.androidx.glance.appwidget)
+
     // Visual voicemail engine
     implementation(libs.apache.mime4j.core)
     implementation(libs.apache.mime4j.dom)

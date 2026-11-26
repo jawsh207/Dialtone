@@ -75,6 +75,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.dialtone.phone.data.CallType
 import app.dialtone.phone.data.Contact
+import app.dialtone.phone.data.FavoriteRanking
 import app.dialtone.phone.telecom.Dialer
 import app.dialtone.phone.ui.components.ContactsMatchBottomBar
 import app.dialtone.phone.ui.components.EmptyState
@@ -215,8 +216,7 @@ fun DialerApp(
         val byId = HashMap<Long, Contact>()
         recents.orEmpty().forEach { call ->
             val contact = contactIndex[numberKey(call.number)] ?: return@forEach
-            val days = ((now - call.date) / 86_400_000.0).coerceAtLeast(0.0)
-            val weight = 1.0 / (1.0 + days / 7.0)
+            val weight = FavoriteRanking.callWeight(now, call.date)
             val pn = contact.numbers.firstOrNull { numberKey(it.number) == numberKey(call.number) }
                 ?: PhoneNumber(call.number, "Mobile")
             val old = scores[contact.id]

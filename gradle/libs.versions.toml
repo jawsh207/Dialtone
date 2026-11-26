@@ -12,6 +12,8 @@ material3 = "1.5.0-beta01"
 materialIcons = "1.7.8"
 # MIME parsing for the visual voicemail engine (IMAP message bodies).
 mime4j = "0.8.9"
+# Home screen widgets (Compose-style RemoteViews).
+glance = "1.2.0"
 # Unit tests (plain JVM, run on every CI build).
 junit = "4.13.2"
 
@@ -29,6 +31,7 @@ androidx-compose-material3 = { group = "androidx.compose.material3", name = "mat
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "materialIcons" }
 apache-mime4j-core = { group = "org.apache.james", name = "apache-mime4j-core", version.ref = "mime4j" }
 apache-mime4j-dom = { group = "org.apache.james", name = "apache-mime4j-dom", version.ref = "mime4j" }
+androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]

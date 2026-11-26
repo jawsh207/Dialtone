@@ -2,4 +2,16 @@
     <string name="app_name">Dialtone</string>
     <!-- Used by the visual voicemail engine when a message can't be decoded. -->
     <string name="vvm_unsupported_message_format">Unsupported message type, call <xliff:g example="*86" id="number">%s</xliff:g> to listen.</string>
+
+    <!-- Long-press app shortcuts. -->
+    <string name="shortcut_keypad">Keypad</string>
+    <string name="shortcut_voicemail">Voicemail</string>
+
+    <!-- Home screen widgets: names and descriptions in the launcher's widget picker. -->
+    <string name="widget_favorites">Favorites</string>
+    <string name="widget_favorites_description">Your favorite contacts. Tap one to call.</string>
+    <string name="widget_voicemail">Voicemail</string>
+    <string name="widget_voicemail_description">New voicemail and the latest transcript.</string>
+    <string name="widget_speed_dial">Speed dial</string>
+    <string name="widget_speed_dial_description">One contact. Tap to call.</string>
 </resources>
